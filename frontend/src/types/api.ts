@@ -288,6 +288,33 @@ export interface OutcomeCheckResult {
   incident_id: string | null;
 }
 
+export interface NotificationPreference {
+  id: string;
+  workspace_id: string;
+  channel: "slack" | "email";
+  enabled: boolean;
+  has_config: boolean;
+  masked_target: string | null;
+  events: string[];
+  min_severity: string;
+  suppression_minutes: number;
+  updated_at: string;
+}
+
+export interface NotificationItem {
+  id: string;
+  workspace_id: string;
+  incident_id: string | null;
+  channel: string;
+  event_type: string;
+  dedup_key: string;
+  status: "pending" | "sent" | "suppressed" | "failed";
+  attempt_count: number;
+  error_message: string | null;
+  sent_at: string | null;
+  created_at: string;
+}
+
 export interface OverviewMetrics {
   total_workflows: number;
   healthy_workflows: number;

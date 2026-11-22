@@ -170,6 +170,21 @@ def ingest_normalized_event(
         execution=execution,
     )
     db.flush()
+
+    if detection.incident is not None and not workspace.is_demo:
+        from app.notifications.service import dispatch_incident_event
+
+        event_type: str | None = None
+        if detection.action == "created":
+            event_type = "critical_incident" if detection.incident.severity == "critical" else "high_incident"
+        elif detection.action == "grouped" and detection.incident.occurrence_count >= 2:
+            event_type = "repeated_failure"
+        elif detection.action == "auto_resolved":
+            event_type = "incident_resolved"
+
+        if event_type is not None:
+            dispatch_incident_event(db, workspace_id=workspace.id, incident=detection.incident, event_type=event_type)
+
     return execution, workflow, False, detection
 
 

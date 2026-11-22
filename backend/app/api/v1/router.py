@@ -8,6 +8,7 @@ from app.api.v1 import (
     ingest,
     integrations,
     investigations,
+    notifications,
     outcome_monitors,
     overview,
     projects,
@@ -27,4 +28,5 @@ api_v1_router.include_router(executions.router)
 api_v1_router.include_router(incidents.router)
 api_v1_router.include_router(investigations.router)
 api_v1_router.include_router(outcome_monitors.router)
+api_v1_router.include_router(notifications.router)
 api_v1_router.include_router(overview.router)

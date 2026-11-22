@@ -14,6 +14,8 @@ import type {
   IntegrationSyncResult,
   IntegrationValidationResult,
   MonitorType,
+  NotificationItem,
+  NotificationPreference,
   OutcomeCheckResult,
   OutcomeMonitor,
   OverviewMetrics,
@@ -283,4 +285,40 @@ export const apiService = {
   // Demo Sandbox
   seedDemoWorkspace: () =>
     apiRequest<Workspace>("/demo/seed", { method: "POST" }),
+
+  // Notifications
+  listNotifications: (workspaceId: string) =>
+    apiRequest<PaginatedResponse<NotificationItem>>(`/workspaces/${workspaceId}/notifications`),
+
+  listNotificationPreferences: (workspaceId: string) =>
+    apiRequest<NotificationPreference[]>(`/workspaces/${workspaceId}/notifications/preferences`),
+
+  upsertNotificationPreference: (
+    workspaceId: string,
+    data: {
+      channel: "slack" | "email";
+      enabled: boolean;
+      slack_webhook_url?: string;
+      email_recipients?: string[];
+      events: string[];
+      min_severity: string;
+      suppression_minutes: number;
+    }
+  ) =>
+    apiRequest<NotificationPreference>(`/workspaces/${workspaceId}/notifications/preferences`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  testNotification: (workspaceId: string, channel: "slack" | "email") =>
+    apiRequest<NotificationItem>(`/workspaces/${workspaceId}/notifications/test`, {
+      method: "POST",
+      body: JSON.stringify({ channel }),
+    }),
+
+  retryNotification: (workspaceId: string, notificationId: string) =>
+    apiRequest<NotificationItem>(
+      `/workspaces/${workspaceId}/notifications/${notificationId}/retry`,
+      { method: "POST" }
+    ),
 };

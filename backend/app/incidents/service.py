@@ -136,6 +136,12 @@ def transition_incident_status(
     )
     db.commit()
     db.refresh(incident)
+
+    if new_status == "resolved" and not incident.is_demo:
+        from app.notifications.service import dispatch_incident_event
+
+        dispatch_incident_event(db, workspace_id=workspace_id, incident=incident, event_type="incident_resolved")
+
     return incident
 
 

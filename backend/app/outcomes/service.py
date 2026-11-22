@@ -469,6 +469,10 @@ def evaluate_monitor(
             )
             incident.severity = monitor.severity
             incident_id = incident.id
+            if not workspace.is_demo:
+                from app.notifications.service import dispatch_incident_event
+
+                dispatch_incident_event(db, workspace_id=workspace.id, incident=incident, event_type="outcome_failure")
 
     run = OutcomeMonitorRun(
         monitor_id=monitor.id,
