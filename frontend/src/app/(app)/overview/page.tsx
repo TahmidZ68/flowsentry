@@ -193,6 +193,49 @@ export default function OverviewPage() {
         </Card>
       </div>
 
+      {/* First-run Onboarding Checklist (shown only when workspace has 0 workflows/executions) */}
+      {data.total_workflows === 0 && data.total_executions === 0 ? (
+        <Card className="border-indigo-500/30 bg-indigo-500/5">
+          <CardHeader>
+            <div>
+              <CardTitle>Start monitoring in 3 steps</CardTitle>
+              <CardDescription>
+                Your workflows run. Make sure they actually produce expected business outcomes.
+              </CardDescription>
+            </div>
+          </CardHeader>
+          <div className="grid gap-3 md:grid-cols-3 text-xs">
+            <Link
+              href="/integrations"
+              className="rounded-md border border-border bg-background/80 p-3 transition hover:border-accent/60"
+            >
+              <p className="font-semibold text-foreground">1. Connect n8n or Webhook</p>
+              <p className="mt-1 text-muted">
+                Sync executions via n8n REST API or point an Error Trigger webhook to FlowSentry.
+              </p>
+            </Link>
+            <Link
+              href="/monitors"
+              className="rounded-md border border-border bg-background/80 p-3 transition hover:border-accent/60"
+            >
+              <p className="font-semibold text-foreground">2. Define Outcome Monitors</p>
+              <p className="mt-1 text-muted">
+                Catch silent failures using expected intervals, required fields, or HTTP checks.
+              </p>
+            </Link>
+            <Link
+              href="/notifications"
+              className="rounded-md border border-border bg-background/80 p-3 transition hover:border-accent/60"
+            >
+              <p className="font-semibold text-foreground">3. Configure Alert Channels</p>
+              <p className="mt-1 text-muted">
+                Route incident alerts and resolution updates to Slack or team email via SMTP.
+              </p>
+            </Link>
+          </div>
+        </Card>
+      ) : null}
+
       {/* 14-day Execution & Failure Trend */}
       <Card>
         <CardHeader>
