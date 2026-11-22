@@ -89,6 +89,11 @@ npm run build
 - [Security Controls](docs/SECURITY.md) & [Vulnerability Reporting](SECURITY.md)
 - [Development Guide](docs/DEVELOPMENT.md)
 - [Deployment & Backups](docs/DEPLOYMENT.md)
+- [Phase 6 Production Readiness Audit](docs/PRODUCTION_READINESS.md)
+- [Phase 7 Infrastructure Verification](docs/INFRASTRUCTURE_VERIFICATION.md)
+- [Phase 8 E2E Verification](docs/E2E_VERIFICATION.md)
+- [Phase 9 Commercial Readiness](docs/COMMERCIAL_READINESS.md)
+- [Phase 10 Launch Readiness & Runbook](docs/LAUNCH_READINESS.md)
 
 ---
 
