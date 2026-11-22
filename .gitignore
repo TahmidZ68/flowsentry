@@ -1,0 +1,47 @@
+# Environments & Secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+venv/
+ENV/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+*.egg-info/
+dist/
+build/
+
+# Node / Next.js
+node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/coverage/
+.turbo/
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+
+# Databases & local data
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+*.sql.gz
+
+# IDE / OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
