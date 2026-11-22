@@ -39,6 +39,7 @@ yarn-debug.log*
 *.sqlite3
 *.dump
 *.sql.gz
+backups/
 
 # IDE / OS
 .DS_Store

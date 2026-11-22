@@ -34,6 +34,11 @@ docker compose exec -T postgres pg_dump -U flowsentry flowsentry | gzip > backup
 ```
 
 ### Restore
+Verify a backup into an isolated verification database (`flowsentry_restore_verify`) first:
+```bash
+./scripts/restore_db.sh backups/flowsentry_YYYYMMDD_HHMMSS.sql.gz
+```
+Or restore into a target database explicitly:
 ```bash
 gunzip -c backup_YYYY-MM-DD.sql.gz | docker compose exec -T postgres psql -U flowsentry flowsentry
 ```

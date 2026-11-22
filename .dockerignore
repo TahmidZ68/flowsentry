@@ -1,0 +1,25 @@
+.git/
+.gitignore
+.env
+.env.*
+backups/
+docs/
+
+# Python caches & virtualenvs
+backend/.venv/
+backend/**/__pycache__/
+backend/**/*.py[cod]
+backend/.pytest_cache/
+backend/.ruff_cache/
+*.db
+*.sqlite
+*.sqlite3
+
+# Node & Next.js build outputs
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/coverage/
+frontend/.turbo/
+*.log
