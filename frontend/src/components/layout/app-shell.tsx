@@ -7,6 +7,7 @@ import {
   Activity,
   AlertOctagon,
   Bell,
+  FlaskConical,
   FolderKanban,
   GitBranch,
   LayoutDashboard,
@@ -26,6 +27,7 @@ import { Input, Select } from "@/components/ui/input";
 import { LoadingState } from "@/components/ui/states";
 import { useAuth } from "@/features/auth/auth-context";
 import { cn } from "@/lib/utils";
+import { apiService } from "@/services/api";
 import type { ProjectEnvironment } from "@/types/api";
 
 export const NAV_ITEMS = [
@@ -51,10 +53,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     isLoading,
     setActiveWorkspaceId,
     setActiveEnvironment,
+    refreshAuth,
     signOut,
   } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [seedingDemo, setSeedingDemo] = useState(false);
+
+  const handleSeedDemo = async () => {
+    setSeedingDemo(true);
+    try {
+      const demoWs = await apiService.seedDemoWorkspace();
+      await refreshAuth();
+      setActiveWorkspaceId(demoWs.id);
+    } finally {
+      setSeedingDemo(false);
+    }
+  };
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -115,7 +130,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
       </div>
 
-      <div className="border-t border-border p-3">
+      <div className="space-y-2 border-t border-border p-3">
         <div className="rounded-md border border-border bg-background/60 p-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-foreground">
@@ -129,6 +144,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
           <p className="mt-1 truncate text-[11px] text-muted">{user.email}</p>
         </div>
+        <Button
+          variant="secondary"
+          size="sm"
+          className="w-full text-xs"
+          onClick={() => void handleSeedDemo()}
+          disabled={seedingDemo}
+        >
+          <FlaskConical className="h-3.5 w-3.5 text-amber-400" />
+          {seedingDemo ? "Preparing Demo..." : "Seed / Reset Demo"}
+        </Button>
       </div>
     </div>
   );

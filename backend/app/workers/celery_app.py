@@ -26,6 +26,14 @@ celery_app.conf.update(
             "task": "flowsentry.poll_enabled_integrations",
             "schedule": 120.0,
         },
+        "evaluate-due-outcome-monitors": {
+            "task": "flowsentry.evaluate_due_outcome_monitors",
+            "schedule": 60.0,
+        },
+        "evaluate-frequency-anomalies": {
+            "task": "flowsentry.evaluate_frequency_anomalies",
+            "schedule": 180.0,
+        },
     },
 )
 

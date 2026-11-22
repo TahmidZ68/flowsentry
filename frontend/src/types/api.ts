@@ -221,6 +221,73 @@ export interface TrendPoint {
   failed: number;
 }
 
+export type MonitorType =
+  | "expected_interval"
+  | "expected_count"
+  | "required_output_fields"
+  | "http_endpoint"
+  | "webhook_confirmation"
+  | "external_record_check";
+
+export interface AIInvestigation {
+  id: string;
+  incident_id: string;
+  workspace_id: string;
+  provider: string;
+  model: string;
+  analysis_status: string;
+  summary: string | null;
+  root_cause_hypothesis: string | null;
+  confidence: number | null;
+  evidence: string[];
+  possible_causes: string[];
+  recommended_actions: string[];
+  severity_assessment: string | null;
+  requires_human_review: boolean;
+  token_usage: Record<string, number>;
+  error_message: string | null;
+  created_at: string;
+  completed_at: string | null;
+}
+
+export interface OutcomeMonitor {
+  id: string;
+  workspace_id: string;
+  workflow_id: string;
+  workflow_name: string | null;
+  name: string;
+  description: string | null;
+  monitor_type: MonitorType;
+  configuration: Record<string, unknown>;
+  expected_result: Record<string, unknown>;
+  schedule_seconds: number;
+  severity: "critical" | "high" | "medium" | "low";
+  enabled: boolean;
+  status: "healthy" | "failing" | "unknown";
+  last_checked_at: string | null;
+  last_success_at: string | null;
+  last_failure_at: string | null;
+  failure_evidence: Record<string, unknown> | null;
+  is_demo: boolean;
+  created_at: string;
+}
+
+export interface OutcomeMonitorRun {
+  id: string;
+  monitor_id: string;
+  workspace_id: string;
+  passed: boolean;
+  evidence: Record<string, unknown>;
+  duration_ms: number | null;
+  checked_at: string;
+}
+
+export interface OutcomeCheckResult {
+  monitor: OutcomeMonitor;
+  run: OutcomeMonitorRun;
+  incident_id: string | null;
+}
+
 export interface OverviewMetrics {
   total_workflows: number;
   healthy_workflows: number;

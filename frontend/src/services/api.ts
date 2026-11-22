@@ -2,6 +2,7 @@ import { apiRequest } from "@/lib/api-client";
 import type {
   APIKey,
   APIKeyCreateResponse,
+  AIInvestigation,
   AuditLog,
   AuthMeResponse,
   Execution,
@@ -12,6 +13,9 @@ import type {
   IntegrationCreateResponse,
   IntegrationSyncResult,
   IntegrationValidationResult,
+  MonitorType,
+  OutcomeCheckResult,
+  OutcomeMonitor,
   OverviewMetrics,
   PaginatedResponse,
   Project,
@@ -222,4 +226,61 @@ export const apiService = {
       method: "POST",
       body: JSON.stringify({ content }),
     }),
+
+  // Investigations
+  listInvestigations: (workspaceId: string, incidentId?: string) => {
+    const qs = incidentId ? `?incident_id=${encodeURIComponent(incidentId)}` : "";
+    return apiRequest<PaginatedResponse<AIInvestigation>>(
+      `/workspaces/${workspaceId}/investigations${qs}`
+    );
+  },
+
+  startInvestigation: (workspaceId: string, incidentId: string) =>
+    apiRequest<AIInvestigation>(
+      `/workspaces/${workspaceId}/incidents/${incidentId}/investigations`,
+      { method: "POST", body: JSON.stringify({ run_async: false }) }
+    ),
+
+  // Outcome Monitors
+  listOutcomeMonitors: (workspaceId: string) =>
+    apiRequest<OutcomeMonitor[]>(`/workspaces/${workspaceId}/outcome-monitors`),
+
+  createOutcomeMonitor: (
+    workspaceId: string,
+    data: {
+      workflow_id: string;
+      name: string;
+      description?: string;
+      monitor_type: MonitorType;
+      configuration: Record<string, unknown>;
+      expected_result: Record<string, unknown>;
+      schedule_seconds?: number;
+      severity?: "critical" | "high" | "medium" | "low";
+    }
+  ) =>
+    apiRequest<OutcomeMonitor>(`/workspaces/${workspaceId}/outcome-monitors`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  toggleOutcomeMonitor: (workspaceId: string, monitorId: string, enabled: boolean) =>
+    apiRequest<OutcomeMonitor>(
+      `/workspaces/${workspaceId}/outcome-monitors/${monitorId}/${enabled ? "enable" : "disable"}`,
+      { method: "POST" }
+    ),
+
+  checkOutcomeMonitor: (workspaceId: string, monitorId: string) =>
+    apiRequest<OutcomeCheckResult>(
+      `/workspaces/${workspaceId}/outcome-monitors/${monitorId}/check`,
+      { method: "POST" }
+    ),
+
+  deleteOutcomeMonitor: (workspaceId: string, monitorId: string) =>
+    apiRequest<void>(`/workspaces/${workspaceId}/outcome-monitors/${monitorId}`, {
+      method: "DELETE",
+    }),
+
+  // Demo Sandbox
+  seedDemoWorkspace: () =>
+    apiRequest<Workspace>("/demo/seed", { method: "POST" }),
 };

@@ -72,8 +72,7 @@ def create_integration(
             detail={
                 "code": "PLAN_LIMIT_REACHED",
                 "message": (
-                    f"Current plan ({limits.display_name}) allows at most "
-                    f"{limits.max_integrations} integration(s)"
+                    f"Current plan ({limits.display_name}) allows at most " f"{limits.max_integrations} integration(s)"
                 ),
             },
         )

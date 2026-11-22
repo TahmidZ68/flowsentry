@@ -4,7 +4,8 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, CheckCircle, MessageSquarePlus, RotateCcw } from "lucide-react";
+import { ArrowLeft, CheckCircle, MessageSquarePlus, RotateCcw, Sparkles } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -31,6 +32,24 @@ export default function IncidentDetailPage() {
     queryKey: ["incident", activeWorkspace?.id, incidentId],
     queryFn: () => apiService.getIncident(activeWorkspace!.id, incidentId),
     enabled: Boolean(activeWorkspace?.id && incidentId),
+  });
+
+  const investigationsQuery = useQuery({
+    queryKey: ["incident-investigations", activeWorkspace?.id, incidentId],
+    queryFn: () => apiService.listInvestigations(activeWorkspace!.id, incidentId),
+    enabled: Boolean(activeWorkspace?.id && incidentId),
+  });
+
+  const startInvestigationMutation = useMutation({
+    mutationFn: () => apiService.startInvestigation(activeWorkspace!.id, incidentId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["incident-investigations", activeWorkspace?.id, incidentId],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["investigations", activeWorkspace?.id],
+      });
+    },
   });
 
   const invalidate = async () => {
@@ -166,6 +185,85 @@ export default function IncidentDetailPage() {
                 {inc.resolution_notes ? ` — ${inc.resolution_notes}` : ""}
               </div>
             ) : null}
+          </Card>
+
+          {/* Root-Cause Investigation */}
+          <Card>
+            <CardHeader>
+              <div>
+                <CardTitle>Root-Cause Investigation</CardTitle>
+                <CardDescription>
+                  Evidence-backed diagnosis (uses configured AI provider or deterministic fallback)
+                </CardDescription>
+              </div>
+              {canMutate ? (
+                <Button
+                  size="sm"
+                  onClick={() => startInvestigationMutation.mutate()}
+                  disabled={startInvestigationMutation.isPending}
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  {startInvestigationMutation.isPending ? "Analyzing..." : "Run Investigation"}
+                </Button>
+              ) : null}
+            </CardHeader>
+
+            {(investigationsQuery.data?.items.length ?? 0) === 0 ? (
+              <p className="text-xs text-muted">
+                No investigation run yet. Click &quot;Run Investigation&quot; to analyze sanitized execution evidence.
+              </p>
+            ) : (
+              (() => {
+                const latest = investigationsQuery.data!.items[0];
+                return (
+                  <div className="space-y-3 text-xs">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="accent">
+                        {latest.provider} / {latest.model}
+                      </Badge>
+                      <Badge variant="info">
+                        Confidence:{" "}
+                        {latest.confidence !== null ? `${Math.round(latest.confidence * 100)}%` : "—"}
+                      </Badge>
+                      {latest.requires_human_review ? (
+                        <Badge variant="warning">Human review recommended</Badge>
+                      ) : null}
+                    </div>
+                    {latest.summary ? (
+                      <p className="font-medium text-foreground">{latest.summary}</p>
+                    ) : null}
+                    {latest.root_cause_hypothesis ? (
+                      <div className="rounded-md border border-border bg-background p-3">
+                        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">
+                          Hypothesis
+                        </p>
+                        <p className="mt-1 text-foreground">{latest.root_cause_hypothesis}</p>
+                      </div>
+                    ) : null}
+                    {latest.evidence.length > 0 ? (
+                      <div>
+                        <p className="font-semibold text-muted">Observed Evidence</p>
+                        <ul className="mt-1 list-inside list-disc space-y-1 text-foreground">
+                          {latest.evidence.map((item, idx) => (
+                            <li key={idx}>{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+                    {latest.recommended_actions.length > 0 ? (
+                      <div>
+                        <p className="font-semibold text-muted">Recommended Actions</p>
+                        <ul className="mt-1 list-inside list-disc space-y-1 text-emerald-300">
+                          {latest.recommended_actions.map((act, idx) => (
+                            <li key={idx}>{act}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })()
+            )}
           </Card>
 
           {/* Related Executions */}
