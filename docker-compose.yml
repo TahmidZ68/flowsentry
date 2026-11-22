@@ -38,7 +38,8 @@ services:
     container_name: flowsentry-backend
     restart: unless-stopped
     env_file:
-      - .env
+      - path: .env
+        required: false
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://flowsentry:flowsentry@postgres:5432/flowsentry}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
@@ -66,7 +67,8 @@ services:
     container_name: flowsentry-worker
     restart: unless-stopped
     env_file:
-      - .env
+      - path: .env
+        required: false
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://flowsentry:flowsentry@postgres:5432/flowsentry}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
@@ -86,7 +88,8 @@ services:
     container_name: flowsentry-beat
     restart: unless-stopped
     env_file:
-      - .env
+      - path: .env
+        required: false
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://flowsentry:flowsentry@postgres:5432/flowsentry}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
@@ -106,12 +109,26 @@ services:
     container_name: flowsentry-frontend
     restart: unless-stopped
     env_file:
-      - .env
+      - path: .env
+        required: false
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
     ports:
       - "3000:3000"
     depends_on:
+      - backend
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: flowsentry-nginx
+    restart: unless-stopped
+    profiles: ["prod"]
+    ports:
+      - "80:80"
+    volumes:
+      - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - frontend
       - backend
 
 volumes:

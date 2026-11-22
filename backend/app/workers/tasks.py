@@ -6,13 +6,14 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 
+from app.core.plans import get_plan_limits
 from app.db.session import SessionLocal
 from app.detection.engine import _ensure_utc, _upsert_incident
 from app.intelligence.service import execute_investigation
 from app.models.identity import Workspace
 from app.models.incidents import AIInvestigation, Incident
 from app.models.monitoring import Execution, Integration, Workflow
-from app.models.outcomes import OutcomeMonitor
+from app.models.outcomes import OutcomeMonitor, OutcomeMonitorRun
 from app.outcomes.service import evaluate_monitor
 from app.services.integration_service import sync_n8n_integration
 from app.workers.celery_app import celery_app
@@ -153,3 +154,36 @@ def evaluate_frequency_anomalies() -> dict[str, int]:
                 flagged += 1
         db.commit()
     return {"checked": checked, "flagged": flagged}
+
+
+@celery_app.task(name="flowsentry.cleanup_expired_records")
+def cleanup_expired_records() -> dict[str, int]:
+    """Enforce per-plan data retention policies on executions and monitor runs."""
+    from sqlalchemy import delete
+
+    deleted_executions = 0
+    deleted_runs = 0
+    now = datetime.now(UTC)
+
+    with SessionLocal() as db:
+        workspaces = list(db.scalars(select(Workspace)).all())
+        for ws in workspaces:
+            retention_days = get_plan_limits(ws.plan).retention_days
+            cutoff = now - timedelta(days=retention_days)
+            res_exec = db.execute(
+                delete(Execution).where(
+                    Execution.workspace_id == ws.id,
+                    Execution.started_at < cutoff,
+                )
+            )
+            res_runs = db.execute(
+                delete(OutcomeMonitorRun).where(
+                    OutcomeMonitorRun.workspace_id == ws.id,
+                    OutcomeMonitorRun.checked_at < cutoff,
+                )
+            )
+            deleted_executions += int(res_exec.rowcount or 0)
+            deleted_runs += int(res_runs.rowcount or 0)
+        db.commit()
+
+    return {"deleted_executions": deleted_executions, "deleted_runs": deleted_runs}

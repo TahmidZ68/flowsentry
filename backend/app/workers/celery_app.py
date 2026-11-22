@@ -34,6 +34,10 @@ celery_app.conf.update(
             "task": "flowsentry.evaluate_frequency_anomalies",
             "schedule": 180.0,
         },
+        "cleanup-expired-records": {
+            "task": "flowsentry.cleanup_expired_records",
+            "schedule": 86400.0,
+        },
     },
 )
 
