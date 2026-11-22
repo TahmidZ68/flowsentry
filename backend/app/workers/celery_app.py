@@ -10,6 +10,7 @@ celery_app = Celery(
     "flowsentry",
     broker=settings.CELERY_BROKER_URL,
     backend=settings.CELERY_RESULT_BACKEND,
+    include=["app.workers.tasks"],
 )
 
 celery_app.conf.update(
@@ -20,6 +21,12 @@ celery_app.conf.update(
     enable_utc=True,
     task_acks_late=True,
     worker_prefetch_multiplier=1,
+    beat_schedule={
+        "poll-enabled-integrations": {
+            "task": "flowsentry.poll_enabled_integrations",
+            "schedule": 120.0,
+        },
+    },
 )
 
 

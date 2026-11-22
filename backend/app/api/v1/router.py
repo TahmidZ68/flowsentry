@@ -1,8 +1,24 @@
 from fastapi import APIRouter
 
-from app.api.v1 import auth, projects, workspaces
+from app.api.v1 import (
+    auth,
+    executions,
+    incidents,
+    ingest,
+    integrations,
+    overview,
+    projects,
+    workflows,
+    workspaces,
+)
 
 api_v1_router = APIRouter()
 api_v1_router.include_router(auth.router)
 api_v1_router.include_router(workspaces.router)
 api_v1_router.include_router(projects.router)
+api_v1_router.include_router(integrations.router)
+api_v1_router.include_router(ingest.router)
+api_v1_router.include_router(workflows.router)
+api_v1_router.include_router(executions.router)
+api_v1_router.include_router(incidents.router)
+api_v1_router.include_router(overview.router)

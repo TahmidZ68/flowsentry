@@ -3,30 +3,46 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { AlertOctagon, FolderKanban, GitBranch, Plug, Plus, Target } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import {
+  Activity,
+  AlertOctagon,
+  CheckCircle2,
+  GitBranch,
+  Plug,
+  Plus,
+  XCircle,
+} from "lucide-react";
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import {
+  ExecutionStatusBadge,
+  IncidentStatusBadge,
+  SeverityBadge,
+} from "@/components/ui/severity-badge";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui/states";
 import { useAuth } from "@/features/auth/auth-context";
+import { formatRelativeDate } from "@/lib/utils";
 import { apiService } from "@/services/api";
 
 export default function OverviewPage() {
-  const { activeWorkspace, activeEnvironment, refreshAuth, setActiveWorkspaceId } = useAuth();
+  const { activeWorkspace, refreshAuth, setActiveWorkspaceId } = useAuth();
   const [newWsName, setNewWsName] = useState("");
   const [creatingWs, setCreatingWs] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
-  const usageQuery = useQuery({
-    queryKey: ["usage", activeWorkspace?.id],
-    queryFn: () => apiService.getUsage(activeWorkspace!.id),
-    enabled: Boolean(activeWorkspace?.id),
-  });
-
-  const projectsQuery = useQuery({
-    queryKey: ["projects", activeWorkspace?.id, activeEnvironment],
-    queryFn: () => apiService.listProjects(activeWorkspace!.id, activeEnvironment),
+  const overviewQuery = useQuery({
+    queryKey: ["overview", activeWorkspace?.id],
+    queryFn: () => apiService.getOverview(activeWorkspace!.id),
     enabled: Boolean(activeWorkspace?.id),
   });
 
@@ -73,9 +89,7 @@ export default function OverviewPage() {
                 minLength={2}
               />
             </div>
-            {createError ? (
-              <p className="text-xs text-red-400">{createError}</p>
-            ) : null}
+            {createError ? <p className="text-xs text-red-400">{createError}</p> : null}
             <Button type="submit" disabled={creatingWs}>
               <Plus className="h-4 w-4" />
               {creatingWs ? "Creating..." : "Create workspace"}
@@ -86,21 +100,20 @@ export default function OverviewPage() {
     );
   }
 
-  if (usageQuery.isLoading || projectsQuery.isLoading) {
+  if (overviewQuery.isLoading) {
     return <LoadingState label="Loading workspace telemetry..." />;
   }
 
-  if (usageQuery.isError) {
+  if (overviewQuery.isError) {
     return (
       <ErrorState
-        message={(usageQuery.error as Error)?.message || "Failed to load workspace usage"}
-        onRetry={() => void usageQuery.refetch()}
+        message={(overviewQuery.error as Error)?.message || "Failed to load overview metrics"}
+        onRetry={() => void overviewQuery.refetch()}
       />
     );
   }
 
-  const usage = usageQuery.data;
-  const projects = projectsQuery.data?.items || [];
+  const data = overviewQuery.data!;
 
   return (
     <div className="space-y-6">
@@ -108,116 +121,204 @@ export default function OverviewPage() {
         <div>
           <h1 className="text-lg font-semibold tracking-tight text-foreground">Overview</h1>
           <p className="text-xs text-muted">
-            Real-time reliability summary for <span className="text-foreground">{activeWorkspace.name}</span>
+            Live reliability telemetry for <span className="text-foreground">{activeWorkspace.name}</span>
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Link href="/projects">
+          <Link href="/incidents">
             <Button variant="secondary" size="sm">
-              <FolderKanban className="h-3.5 w-3.5" />
-              Manage Projects
+              <AlertOctagon className="h-3.5 w-3.5" />
+              View Incidents
             </Button>
           </Link>
           <Link href="/integrations">
             <Button size="sm">
               <Plug className="h-3.5 w-3.5" />
-              Connect n8n
+              Integrations
             </Button>
           </Link>
         </div>
       </div>
 
-      {/* Real Backend KPI Cards — Zero fabricated metrics */}
+      {/* Real Backend KPIs */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card>
           <div className="flex items-center justify-between">
-            <span className="text-xs text-muted">Projects</span>
-            <FolderKanban className="h-4 w-4 text-slate-500" />
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-semibold text-foreground">{usage?.projects_count ?? 0}</span>
-            <span className="text-xs text-muted">/ {usage?.plan.max_projects ?? 0} limit</span>
-          </div>
-        </Card>
-
-        <Card>
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted">Connected Integrations</span>
-            <Plug className="h-4 w-4 text-slate-500" />
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-semibold text-foreground">{usage?.integrations_count ?? 0}</span>
-            <span className="text-xs text-muted">/ {usage?.plan.max_integrations ?? 0} limit</span>
-          </div>
-        </Card>
-
-        <Card>
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted">Executions ({usage?.period_month})</span>
+            <span className="text-xs text-muted">Monitored Workflows</span>
             <GitBranch className="h-4 w-4 text-slate-500" />
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-semibold text-foreground">{usage?.executions_count ?? 0}</span>
-            <span className="text-xs text-muted">/ {usage?.plan.max_monthly_executions.toLocaleString()}</span>
+            <span className="text-2xl font-semibold text-foreground">{data.total_workflows}</span>
+            <span className="text-xs text-emerald-400">{data.healthy_workflows} healthy</span>
           </div>
         </Card>
 
         <Card>
           <div className="flex items-center justify-between">
-            <span className="text-xs text-muted">Outcome Monitors</span>
-            <Target className="h-4 w-4 text-slate-500" />
+            <span className="text-xs text-muted">Successful Executions</span>
+            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-semibold text-foreground">{usage?.outcome_monitors_count ?? 0}</span>
-            <span className="text-xs text-muted">/ {usage?.plan.max_outcome_monitors ?? 0} limit</span>
+            <span className="text-2xl font-semibold text-foreground">
+              {data.successful_executions}
+            </span>
+            <span className="text-xs text-muted">of {data.total_executions} total</span>
+          </div>
+        </Card>
+
+        <Card>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted">Failed Executions</span>
+            <XCircle className="h-4 w-4 text-red-400" />
+          </div>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-2xl font-semibold text-foreground">{data.failed_executions}</span>
+            <span className="text-xs text-muted">
+              {data.total_executions > 0
+                ? `${((data.failed_executions / data.total_executions) * 100).toFixed(1)}% failure rate`
+                : "0% failure rate"}
+            </span>
+          </div>
+        </Card>
+
+        <Card>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted">Active Incidents</span>
+            <AlertOctagon className="h-4 w-4 text-amber-400" />
+          </div>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-2xl font-semibold text-foreground">{data.active_incidents}</span>
+            <span className="text-xs text-red-400">{data.critical_incidents} critical</span>
           </div>
         </Card>
       </div>
 
+      {/* 14-day Execution & Failure Trend */}
+      <Card>
+        <CardHeader>
+          <div>
+            <CardTitle>Execution &amp; Failure Trends (14 Days)</CardTitle>
+            <CardDescription>Aggregated from normalized execution records</CardDescription>
+          </div>
+          <Activity className="h-4 w-4 text-slate-500" />
+        </CardHeader>
+        {data.total_executions === 0 ? (
+          <EmptyState
+            title="No execution history recorded yet"
+            description="Connect an n8n instance or trigger a safe test webhook in Integrations to see real execution trends."
+          />
+        ) : (
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={data.trends} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+                <CartesianGrid stroke="#1e293b" strokeDasharray="3 3" />
+                <XAxis dataKey="date" tick={{ fill: "#94a3b8", fontSize: 11 }} />
+                <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} allowDecimals={false} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#0d1320",
+                    borderColor: "#1e293b",
+                    color: "#f1f5f9",
+                    fontSize: "12px",
+                  }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="success"
+                  name="Success"
+                  stroke="#10b981"
+                  fill="#10b981"
+                  fillOpacity={0.15}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="failed"
+                  name="Failed"
+                  stroke="#ef4444"
+                  fill="#ef4444"
+                  fillOpacity={0.2}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </Card>
+
       <div className="grid gap-6 lg:grid-cols-2">
+        {/* Recent Incidents */}
         <Card>
           <CardHeader>
             <div>
-              <CardTitle>Projects in Workspace</CardTitle>
-              <CardDescription>Environment-scoped automation containers</CardDescription>
+              <CardTitle>Recent Incidents</CardTitle>
+              <CardDescription>Grouped failures requiring attention</CardDescription>
             </div>
-            <Link href="/projects" className="text-xs text-accent hover:underline">
-              View all
+            <Link href="/incidents" className="text-xs text-accent hover:underline">
+              All incidents
             </Link>
           </CardHeader>
-
-          {projects.length === 0 ? (
+          {data.recent_incidents.length === 0 ? (
             <EmptyState
-              title="No matching projects"
-              description="Create a project or switch the environment filter in the top bar."
+              title="No incidents detected"
+              description="Failed executions and silent outcome violations will group here."
             />
           ) : (
             <div className="divide-y divide-border">
-              {projects.map((p) => (
-                <div key={p.id} className="flex items-center justify-between py-2.5 text-sm">
-                  <div>
-                    <p className="font-medium text-foreground">{p.name}</p>
-                    <p className="text-xs text-muted">{p.description || "No description"}</p>
+              {data.recent_incidents.map((inc) => (
+                <Link
+                  key={inc.id}
+                  href={`/incidents/${inc.id}`}
+                  className="flex items-center justify-between gap-3 py-2.5 text-sm hover:bg-surface-elevated/40"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-foreground">{inc.title}</p>
+                    <p className="text-xs text-muted">
+                      {inc.workflow_name} · {inc.occurrence_count}x · {formatRelativeDate(inc.last_seen_at)}
+                    </p>
                   </div>
-                  <Badge variant="default">{p.environment}</Badge>
-                </div>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <SeverityBadge severity={inc.severity} />
+                    <IncidentStatusBadge status={inc.status} />
+                  </div>
+                </Link>
               ))}
             </div>
           )}
         </Card>
 
+        {/* Recent Executions */}
         <Card>
           <CardHeader>
             <div>
-              <CardTitle>Active Incidents</CardTitle>
-              <CardDescription>Grouped workflow failures & silent outcome anomalies</CardDescription>
+              <CardTitle>Recent Executions</CardTitle>
+              <CardDescription>Latest normalized workflow runs</CardDescription>
             </div>
-            <AlertOctagon className="h-4 w-4 text-slate-500" />
+            <Link href="/workflows" className="text-xs text-accent hover:underline">
+              Workflows
+            </Link>
           </CardHeader>
-          <EmptyState
-            title="No incidents ingested yet"
-            description="Connect an n8n integration or webhook in Phase 2 to start tracking real execution failures and grouped incidents."
-          />
+          {data.recent_executions.length === 0 ? (
+            <EmptyState
+              title="No executions ingested"
+              description="Sync an n8n instance or configure an Error Trigger webhook."
+            />
+          ) : (
+            <div className="divide-y divide-border">
+              {data.recent_executions.map((ex) => (
+                <div key={ex.id} className="flex items-center justify-between gap-3 py-2.5 text-xs">
+                  <div className="min-w-0">
+                    <p className="truncate font-mono text-foreground">{ex.external_execution_id}</p>
+                    <p className="truncate text-muted">
+                      {ex.error_summary || (ex.duration_ms ? `${ex.duration_ms} ms` : "Completed")}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <ExecutionStatusBadge status={ex.status} />
+                    <span className="text-muted">{formatRelativeDate(ex.started_at)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </Card>
       </div>
     </div>

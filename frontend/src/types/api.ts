@@ -1,5 +1,8 @@
 export type WorkspaceRole = "owner" | "admin" | "member" | "viewer";
 export type ProjectEnvironment = "production" | "staging" | "development";
+export type ExecutionStatus = "success" | "failed" | "running" | "waiting" | "canceled" | "unknown";
+export type IncidentSeverity = "critical" | "high" | "medium" | "low" | "informational";
+export type IncidentStatus = "open" | "acknowledged" | "investigating" | "resolved" | "reopened";
 
 export interface User {
   id: string;
@@ -96,6 +99,141 @@ export interface AuditLog {
   resource_id: string | null;
   metadata_json: Record<string, unknown>;
   created_at: string;
+}
+
+export interface Integration {
+  id: string;
+  workspace_id: string;
+  project_id: string;
+  provider: "n8n" | "custom_webhook";
+  connection_name: string;
+  base_url: string | null;
+  polling_enabled: boolean;
+  polling_interval_seconds: number;
+  status: "pending" | "connected" | "error" | "disconnected";
+  last_error: string | null;
+  last_connected_at: string | null;
+  last_synced_at: string | null;
+  has_credentials: boolean;
+  created_at: string;
+}
+
+export interface IntegrationCreateResponse {
+  integration: Integration;
+  webhook_secret: string;
+  webhook_url_path: string;
+}
+
+export interface IntegrationValidationResult {
+  ok: boolean;
+  status: string;
+  message: string;
+  workflows_accessible: number;
+}
+
+export interface IntegrationSyncResult {
+  workflows_synced: number;
+  executions_ingested: number;
+  executions_deduplicated: number;
+  incidents_created: number;
+  incidents_updated: number;
+}
+
+export interface Workflow {
+  id: string;
+  workspace_id: string;
+  project_id: string;
+  integration_id: string;
+  external_workflow_id: string;
+  name: string;
+  description: string | null;
+  enabled: boolean;
+  max_duration_ms: number | null;
+  expected_interval_seconds: number | null;
+  is_demo: boolean;
+  execution_count: number;
+  failed_count: number;
+  failure_rate: number;
+  avg_duration_ms: number | null;
+  last_execution_at: string | null;
+  last_execution_status: string | null;
+  active_incidents_count: number;
+  created_at: string;
+}
+
+export interface Execution {
+  id: string;
+  workspace_id: string;
+  workflow_id: string;
+  external_execution_id: string;
+  schema_version: string;
+  status: ExecutionStatus;
+  started_at: string;
+  finished_at: string | null;
+  duration_ms: number | null;
+  failed_node: string | null;
+  error_type: string | null;
+  error_summary: string | null;
+  normalized_payload: Record<string, unknown>;
+  is_demo: boolean;
+  created_at: string;
+}
+
+export interface IncidentNote {
+  id: string;
+  incident_id: string;
+  author_id: string | null;
+  note_type: "comment" | "status_change" | "system";
+  content: string;
+  created_at: string;
+}
+
+export interface Incident {
+  id: string;
+  workspace_id: string;
+  workflow_id: string;
+  workflow_name: string | null;
+  title: string;
+  description: string | null;
+  severity: IncidentSeverity;
+  status: IncidentStatus;
+  fingerprint: string;
+  first_seen_at: string;
+  last_seen_at: string;
+  occurrence_count: number;
+  assigned_to_user_id: string | null;
+  resolved_at: string | null;
+  resolution_reason: string | null;
+  resolution_notes: string | null;
+  is_demo: boolean;
+  created_at: string;
+}
+
+export interface IncidentDetail extends Incident {
+  notes: IncidentNote[];
+  recent_executions: Execution[];
+}
+
+export interface TrendPoint {
+  date: string;
+  total: number;
+  success: number;
+  failed: number;
+}
+
+export interface OverviewMetrics {
+  total_workflows: number;
+  healthy_workflows: number;
+  total_executions: number;
+  successful_executions: number;
+  failed_executions: number;
+  active_incidents: number;
+  critical_incidents: number;
+  monitors_total: number;
+  monitors_failing: number;
+  trends: TrendPoint[];
+  recent_incidents: Incident[];
+  recent_executions: Execution[];
 }
 
 export interface PaginatedResponse<T> {
