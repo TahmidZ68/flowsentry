@@ -21,7 +21,7 @@ const integrationSchema = z.object({
   connection_name: z.string().min(2, "Enter a connection name"),
   base_url: z.string().optional(),
   api_key: z.string().optional(),
-  polling_interval_seconds: z.coerce.number().min(30).max(3600).default(120),
+  polling_interval_seconds: z.coerce.number<number>().min(30).max(3600),
 });
 
 type IntegrationFormValues = z.infer<typeof integrationSchema>;

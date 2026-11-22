@@ -60,6 +60,8 @@ def verify_jwt_token(token: str) -> dict[str, Any]:
             raise AuthenticationError(f"Invalid token: {exc}") from exc
 
     # Supabase Auth verification
+    expected_issuer = f"{settings.SUPABASE_URL.rstrip('/')}/auth/v1" if settings.SUPABASE_URL else None
+
     if alg in {"RS256", "ES256"}:
         if not settings.SUPABASE_URL:
             raise AuthenticationError("SUPABASE_URL is not configured for JWKS verification")
@@ -71,17 +73,23 @@ def verify_jwt_token(token: str) -> dict[str, Any]:
                 signing_key.key,
                 algorithms=[alg],
                 audience="authenticated",
+                issuer=expected_issuer,
             )
         except jwt.PyJWTError as exc:
             raise AuthenticationError(f"Invalid JWKS-signed token: {exc}") from exc
 
     if alg == "HS256" and settings.SUPABASE_JWT_SECRET:
         try:
+            decode_kwargs: dict[str, Any] = {
+                "algorithms": ["HS256"],
+                "audience": "authenticated",
+            }
+            if expected_issuer:
+                decode_kwargs["issuer"] = expected_issuer
             return jwt.decode(
                 token,
                 settings.SUPABASE_JWT_SECRET,
-                algorithms=["HS256"],
-                audience="authenticated",
+                **decode_kwargs,
             )
         except jwt.PyJWTError as exc:
             raise AuthenticationError(f"Invalid HS256 token: {exc}") from exc

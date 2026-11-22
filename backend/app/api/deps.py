@@ -2,16 +2,17 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
+from datetime import UTC, datetime
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, Header, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.rate_limit import RateLimitExceeded, rate_limiter
-from app.core.security import AuthenticationError, verify_jwt_token
+from app.core.security import AuthenticationError, hash_secret_token, verify_jwt_token
 from app.db.session import get_db
-from app.models.identity import User, Workspace, WorkspaceMember
+from app.models.identity import User, Workspace, WorkspaceAPIKey, WorkspaceMember
 from app.services.workspace_service import get_or_create_user
 
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -31,8 +32,20 @@ class WorkspaceContext:
     member: WorkspaceMember
 
 
+def _extract_client_ip(request: Request) -> str:
+    real_ip = request.headers.get("x-real-ip")
+    if real_ip and real_ip.strip():
+        return real_ip.strip()
+    forwarded_for = request.headers.get("x-forwarded-for")
+    if forwarded_for:
+        first_hop = forwarded_for.split(",", 1)[0].strip()
+        if first_hop:
+            return first_hop
+    return request.client.host if request.client else "unknown"
+
+
 def enforce_rate_limit(request: Request, scope: str = "api", max_requests: int = 120, window_seconds: int = 60) -> None:
-    client_ip = request.client.host if request.client else "unknown"
+    client_ip = _extract_client_ip(request)
     try:
         rate_limiter.check(f"rl:{scope}:{client_ip}", max_requests=max_requests, window_seconds=window_seconds)
     except RateLimitExceeded as exc:
@@ -87,7 +100,8 @@ def get_current_user(
         name=str(name) if name else None,
         avatar_url=str(avatar_url) if avatar_url else None,
     )
-    db.commit()
+    if db.new or db.dirty:
+        db.commit()
     return user
 
 
@@ -132,3 +146,52 @@ def require_workspace_role(min_role: str = "viewer"):
         return WorkspaceContext(user=current_user, workspace=workspace, member=member)
 
     return _dependency
+
+
+def require_ingest_auth(
+    workspace_id: uuid.UUID,
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    db: Session = Depends(get_db),
+) -> Workspace:
+    workspace = db.get(Workspace, workspace_id)
+    if workspace is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "WORKSPACE_ACCESS_DENIED", "message": "Access to workspace is denied"},
+        )
+
+    if x_api_key is not None:
+        key_hash = hash_secret_token(x_api_key.strip())
+        api_key = db.scalar(
+            select(WorkspaceAPIKey).where(
+                WorkspaceAPIKey.workspace_id == workspace_id,
+                WorkspaceAPIKey.key_hash == key_hash,
+            )
+        )
+        if api_key is None or api_key.revoked_at is not None or "ingest:write" not in (api_key.scopes or []):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail={"code": "INVALID_API_KEY", "message": "Invalid, revoked, or unauthorized workspace API key"},
+            )
+        api_key.last_used_at = datetime.now(UTC)
+        return workspace
+
+    current_user = get_current_user(credentials=credentials, db=db)
+    member = db.scalar(
+        select(WorkspaceMember).where(
+            WorkspaceMember.workspace_id == workspace_id,
+            WorkspaceMember.user_id == current_user.id,
+        )
+    )
+    if member is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "WORKSPACE_ACCESS_DENIED", "message": "You are not a member of this workspace"},
+        )
+    if ROLE_RANK.get(member.role, 0) < ROLE_RANK["member"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "INSUFFICIENT_ROLE", "message": "This action requires at least 'member' role"},
+        )
+    return workspace

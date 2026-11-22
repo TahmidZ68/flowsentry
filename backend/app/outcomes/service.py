@@ -11,7 +11,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.plans import get_plan_limits
-from app.core.ssrf import SSRFValidationError, validate_outbound_url
+from app.core.ssrf import SSRFValidationError, build_ssrf_safe_transport, validate_outbound_url
 from app.detection.engine import _ensure_utc, _upsert_incident
 from app.models.identity import Workspace
 from app.models.monitoring import Execution, ExecutionEvent, Workflow
@@ -52,8 +52,14 @@ def _evaluate_http_check(
         return False, {"reason": f"SSRF validation blocked URL: {exc}"}
 
     try:
-        with httpx.Client(timeout=5.0, follow_redirects=False, transport=transport) as client:
+        with httpx.Client(
+            timeout=5.0,
+            follow_redirects=False,
+            transport=transport or build_ssrf_safe_transport(),
+        ) as client:
             resp = client.request(method.upper(), safe_url, headers=headers or {})
+    except SSRFValidationError as exc:
+        return False, {"reason": f"SSRF validation blocked URL: {exc}"}
     except httpx.HTTPError as exc:
         return False, {"reason": f"Outbound HTTP check failed: {exc}"}
 

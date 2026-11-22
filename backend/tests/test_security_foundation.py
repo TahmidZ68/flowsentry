@@ -38,6 +38,8 @@ def test_encryption_roundtrip_and_tamper_detection() -> None:
         "http://172.16.0.10/api/v1",
         "http://192.168.1.50/api/v1",
         "http://169.254.169.254/latest/meta-data/",
+        "http://[::ffff:169.254.169.254]/latest/meta-data/",
+        "http://[::ffff:127.0.0.1]:8000/",
         "http://[::1]:8000/",
         "file:///etc/passwd",
         "ftp://93.184.216.34/resource",
@@ -62,6 +64,8 @@ def test_ssrf_allows_public_ip_and_blocks_metadata_even_in_private_mode() -> Non
     )
     with pytest.raises(SSRFValidationError):
         validate_outbound_url("http://169.254.169.254/latest/meta-data/", allow_private_hosts=True)
+    with pytest.raises(SSRFValidationError):
+        validate_outbound_url("http://[::ffff:169.254.169.254]/latest/meta-data/", allow_private_hosts=True)
 
 
 def test_production_config_forbids_local_dev_auth() -> None:
@@ -107,6 +111,19 @@ def test_supabase_jwks_rs256_verification() -> None:
             "sub": user_id,
             "email": "supabase@example.com",
             "aud": "authenticated",
+            "iss": "https://example.supabase.co/auth/v1",
+            "exp": int((datetime.now(UTC) + timedelta(minutes=10)).timestamp()),
+        },
+        private_key,
+        algorithm="RS256",
+        headers={"kid": "test-kid-1"},
+    )
+    wrong_iss_token = jwt.encode(
+        {
+            "sub": user_id,
+            "email": "supabase@example.com",
+            "aud": "authenticated",
+            "iss": "https://attacker.supabase.co/auth/v1",
             "exp": int((datetime.now(UTC) + timedelta(minutes=10)).timestamp()),
         },
         private_key,
@@ -129,3 +146,5 @@ def test_supabase_jwks_rs256_verification() -> None:
         decoded = verify_jwt_token(token)
         assert decoded["sub"] == user_id
         assert decoded["email"] == "supabase@example.com"
+        with pytest.raises(AuthenticationError):
+            verify_jwt_token(wrong_iss_token)

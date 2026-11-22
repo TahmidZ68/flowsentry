@@ -226,7 +226,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="relative hidden md:block">
+            <form
+              className="relative hidden md:block"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const trimmed = searchQuery.trim();
+                router.push(trimmed ? `/incidents?search=${encodeURIComponent(trimmed)}` : "/incidents");
+              }}
+            >
               <Search className="pointer-events-none absolute left-2.5 top-2 h-4 w-4 text-slate-500" />
               <Input
                 value={searchQuery}
@@ -235,7 +242,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 className="h-8 w-56 pl-8 text-xs"
                 aria-label="Global search"
               />
-            </div>
+            </form>
 
             <Link
               href="/notifications"

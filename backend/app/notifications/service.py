@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.encryption import decrypt_json, encrypt_json, mask_secret
-from app.core.ssrf import SSRFValidationError, validate_outbound_url
+from app.core.ssrf import SSRFValidationError, build_ssrf_safe_transport, validate_outbound_url
 from app.models.incidents import Incident
 from app.models.outcomes import Notification, NotificationPreference
 from app.schemas.notifications import NotificationPreferenceRead, NotificationPreferenceUpsert
@@ -166,7 +166,11 @@ def _deliver_slack(
     transport: httpx.BaseTransport | None = None,
 ) -> None:
     safe_url = validate_outbound_url(webhook_url)
-    with httpx.Client(timeout=5.0, follow_redirects=False, transport=transport) as client:
+    with httpx.Client(
+        timeout=5.0,
+        follow_redirects=False,
+        transport=transport or build_ssrf_safe_transport(),
+    ) as client:
         resp = client.post(safe_url, json={"text": f"*{title}*\n{body}"})
     if resp.status_code >= 400:
         raise RuntimeError(f"Slack webhook returned HTTP {resp.status_code}")

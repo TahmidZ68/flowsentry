@@ -289,3 +289,87 @@ def test_scenarios_1_2_6_7_webhook_grouping_recovery_and_dedup(client: TestClien
     assert client.get(f"/api/v1/workspaces/{ws_id}/workflows", headers=user_b_headers).status_code == 403
     assert client.get(f"/api/v1/workspaces/{ws_id}/executions", headers=user_b_headers).status_code == 403
     assert client.get(f"/api/v1/workspaces/{ws_id}/overview", headers=user_b_headers).status_code == 403
+
+
+def test_phase6_api_key_ingest_webhook_size_limit_and_request_id(client: TestClient) -> None:
+    headers, ws_id, project_id = _setup_workspace(client, "apikey-owner@acme.dev")
+
+    # Security headers & X-Request-ID propagation
+    health_resp = client.get("/health", headers={"X-Request-ID": "req-phase6-123"})
+    assert health_resp.status_code == 200
+    assert health_resp.headers.get("x-request-id") == "req-phase6-123"
+    assert health_resp.headers.get("permissions-policy") == "camera=(), microphone=(), geolocation=()"
+
+    # Create workspace API key
+    key_resp = client.post(
+        f"/api/v1/workspaces/{ws_id}/api-keys",
+        json={"name": "CI Ingest Key", "scopes": ["ingest:write"]},
+        headers=headers,
+    )
+    assert key_resp.status_code == 201, key_resp.text
+    key_id = key_resp.json()["api_key"]["id"]
+    plaintext_key = key_resp.json()["plaintext_key"]
+
+    base_time = datetime(2026, 11, 22, 14, 0, 0, tzinfo=UTC)
+    ingest_payload = {
+        "project_id": project_id,
+        "provider": "custom_sdk",
+        "external_workflow_id": "wf-api-1",
+        "workflow_name": "API Key Workflow",
+        "external_execution_id": "exec-api-1",
+        "status": "failed",
+        "started_at": base_time.isoformat(),
+        "finished_at": (base_time + timedelta(seconds=1)).isoformat(),
+        "duration_ms": 1000,
+        "failed_node": "Sync Node",
+        "error_message": "HTTP 502 Bad Gateway",
+    }
+
+    # Valid X-API-Key succeeds without JWT Bearer token
+    ok_ingest = client.post(
+        f"/api/v1/workspaces/{ws_id}/executions/ingest",
+        json=ingest_payload,
+        headers={"X-API-Key": plaintext_key},
+    )
+    assert ok_ingest.status_code == 200, ok_ingest.text
+    assert ok_ingest.json()["incident_action"] == "created"
+
+    # Invalid API key rejected
+    bad_ingest = client.post(
+        f"/api/v1/workspaces/{ws_id}/executions/ingest",
+        json={**ingest_payload, "external_execution_id": "exec-api-2"},
+        headers={"X-API-Key": "fs_live_invalid"},
+    )
+    assert bad_ingest.status_code == 401
+
+    # Revoked API key rejected
+    revoke = client.delete(f"/api/v1/workspaces/{ws_id}/api-keys/{key_id}", headers=headers)
+    assert revoke.status_code == 204
+    revoked_ingest = client.post(
+        f"/api/v1/workspaces/{ws_id}/executions/ingest",
+        json={**ingest_payload, "external_execution_id": "exec-api-3"},
+        headers={"X-API-Key": plaintext_key},
+    )
+    assert revoked_ingest.status_code == 401
+
+    # Oversized webhook payload (>1 MB) rejected with 413
+    wh_created = client.post(
+        f"/api/v1/workspaces/{ws_id}/integrations",
+        json={"project_id": project_id, "provider": "custom_webhook", "connection_name": "Size Limit WH"},
+        headers=headers,
+    ).json()
+    oversized_body = json.dumps(
+        {
+            "workflow": {"id": "wf-big", "name": "Big"},
+            "execution": {"id": "exec-big", "blob": "A" * 1_100_000},
+        }
+    )
+    big_resp = client.post(
+        f"/api/v1/ingest/webhooks/n8n/{wh_created['integration']['id']}",
+        content=oversized_body,
+        headers={
+            "Content-Type": "application/json",
+            "X-FlowSentry-Webhook-Secret": wh_created["webhook_secret"],
+        },
+    )
+    assert big_resp.status_code == 413

@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { Suspense, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Search } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -12,9 +13,12 @@ import { useAuth } from "@/features/auth/auth-context";
 import { formatRelativeDate } from "@/lib/utils";
 import { apiService } from "@/services/api";
 
-export default function IncidentsPage() {
+function IncidentsPageContent() {
   const { activeWorkspace } = useAuth();
-  const [search, setSearch] = useState("");
+  const searchParams = useSearchParams();
+  const querySearch = searchParams.get("search") ?? "";
+  const [searchOverride, setSearchOverride] = useState<{ query: string; value: string } | null>(null);
+  const search = searchOverride && searchOverride.query === querySearch ? searchOverride.value : querySearch;
   const [severity, setSeverity] = useState("");
   const [status, setStatus] = useState("");
   const [workflowId, setWorkflowId] = useState("");
@@ -59,7 +63,7 @@ export default function IncidentsPage() {
               aria-label="Search incidents"
               placeholder="Search title or error..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => setSearchOverride({ query: querySearch, value: e.target.value })}
               className="pl-8"
             />
           </div>
@@ -167,5 +171,13 @@ export default function IncidentsPage() {
         )}
       </Card>
     </div>
+  );
+}
+
+export default function IncidentsPage() {
+  return (
+    <Suspense fallback={<LoadingState label="Loading incidents..." />}>
+      <IncidentsPageContent />
+    </Suspense>
   );
 }

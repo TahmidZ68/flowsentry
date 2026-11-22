@@ -86,7 +86,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    void refreshAuth();
+    let active = true;
+    void Promise.resolve().then(() => {
+      if (active) {
+        void refreshAuth();
+      }
+    });
+    return () => {
+      active = false;
+    };
   }, [refreshAuth]);
 
   const signInWithDevToken = useCallback(

@@ -7,7 +7,7 @@ from typing import Any
 
 import httpx
 
-from app.core.ssrf import validate_outbound_url
+from app.core.ssrf import build_ssrf_safe_transport, validate_outbound_url
 from app.integrations.normalizer import (
     classify_error_type,
     normalize_timestamp,
@@ -61,7 +61,7 @@ class N8nClient:
             with httpx.Client(
                 timeout=10.0,
                 follow_redirects=False,
-                transport=self._transport,
+                transport=self._transport or build_ssrf_safe_transport(),
             ) as client:
                 response = client.request(method, url, headers=self._headers(), params=params)
         except httpx.HTTPError as exc:

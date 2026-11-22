@@ -30,7 +30,7 @@ const monitorSchema = z.object({
     "external_record_check",
   ]),
   severity: z.enum(["critical", "high", "medium", "low"]),
-  schedule_seconds: z.coerce.number().min(60).max(86400).default(300),
+  schedule_seconds: z.coerce.number<number>().min(60).max(86400),
   param_value: z.string().min(1, "Provide check configuration parameter"),
 });
 

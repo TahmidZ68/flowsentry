@@ -7,7 +7,7 @@ from fastapi import APIRouter, Body, Depends, Header, HTTPException, Request, st
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.deps import WorkspaceContext, enforce_rate_limit, require_workspace_role
+from app.api.deps import enforce_rate_limit, require_ingest_auth
 from app.core.security import verify_hashed_secret
 from app.db.session import get_db
 from app.integrations.n8n import parse_n8n_error_webhook
@@ -18,6 +18,34 @@ from app.services import ingestion_service
 
 router = APIRouter(tags=["Ingestion"])
 
+MAX_WEBHOOK_PAYLOAD_BYTES = 1_048_576
+
+
+async def enforce_webhook_body_limit(request: Request) -> None:
+    content_length = request.headers.get("content-length")
+    if content_length is not None:
+        try:
+            if int(content_length) > MAX_WEBHOOK_PAYLOAD_BYTES:
+                raise HTTPException(
+                    status_code=413,
+                    detail={
+                        "code": "PAYLOAD_TOO_LARGE",
+                        "message": f"Webhook payload exceeds {MAX_WEBHOOK_PAYLOAD_BYTES} byte limit",
+                    },
+                )
+        except ValueError:
+            pass
+
+    body = await request.body()
+    if len(body) > MAX_WEBHOOK_PAYLOAD_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail={
+                "code": "PAYLOAD_TOO_LARGE",
+                "message": f"Webhook payload exceeds {MAX_WEBHOOK_PAYLOAD_BYTES} byte limit",
+            },
+        )
+
 
 @router.post("/ingest/webhooks/n8n/{integration_id}", response_model=IngestResultRead)
 def ingest_n8n_webhook(
@@ -25,6 +53,7 @@ def ingest_n8n_webhook(
     request: Request,
     payload: dict[str, Any] | list[dict[str, Any]] = Body(...),
     x_flowsentry_webhook_secret: str | None = Header(default=None),
+    _: None = Depends(enforce_webhook_body_limit),
     db: Session = Depends(get_db),
 ) -> IngestResultRead:
     enforce_rate_limit(request, scope=f"webhook:{integration_id}", max_requests=180, window_seconds=60)
@@ -83,22 +112,22 @@ def ingest_n8n_webhook(
 def ingest_direct_execution(
     body: DirectExecutionIngestRequest,
     request: Request,
-    ctx: WorkspaceContext = Depends(require_workspace_role("member")),
+    workspace: Workspace = Depends(require_ingest_auth),
     db: Session = Depends(get_db),
 ) -> IngestResultRead:
-    enforce_rate_limit(request, scope=f"ingest:{ctx.workspace.id}", max_requests=240, window_seconds=60)
+    enforce_rate_limit(request, scope=f"ingest:{workspace.id}", max_requests=240, window_seconds=60)
 
-    project = db.scalar(select(Project).where(Project.id == body.project_id, Project.workspace_id == ctx.workspace.id))
+    project = db.scalar(select(Project).where(Project.id == body.project_id, Project.workspace_id == workspace.id))
     if project is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"code": "PROJECT_NOT_FOUND", "message": "Project not found in workspace"},
         )
 
-    integration = ingestion_service.get_or_create_custom_integration(db, workspace=ctx.workspace, project_id=project.id)
+    integration = ingestion_service.get_or_create_custom_integration(db, workspace=workspace, project_id=project.id)
     event = NormalizedExecutionEvent(
         provider=body.provider,
-        workspace_id=ctx.workspace.id,
+        workspace_id=workspace.id,
         project_id=project.id,
         external_workflow_id=body.external_workflow_id,
         workflow_name=body.workflow_name,
@@ -114,7 +143,7 @@ def ingest_direct_execution(
     )
     execution, workflow, deduplicated, detection = ingestion_service.ingest_normalized_event(
         db,
-        workspace=ctx.workspace,
+        workspace=workspace,
         integration=integration,
         event=event,
     )
