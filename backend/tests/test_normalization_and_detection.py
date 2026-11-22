@@ -18,7 +18,10 @@ def test_payload_sanitizer_strips_secrets_and_tokens() -> None:
         "nested": {
             "api_key": "123456",
             "password": "hunter2",
-            "note": "Failed calling with key sk-abcdef1234567890abcdef and eyJhbGciOiJIUzI1NiJ9.abc.def",
+            "note": (
+                "Failed calling with key sk-abcdef1234567890abcdef and "
+                "eyJhbGciOiJIUzI1NiJ9.abc.def and token=sk_live_secret_987654321"
+            ),
         },
     }
     sanitized = sanitize_payload(raw)
@@ -29,6 +32,7 @@ def test_payload_sanitizer_strips_secrets_and_tokens() -> None:
     assert sanitized["nested"]["password"] == "[REDACTED]"
     assert "sk-abcdef" not in sanitized["nested"]["note"]
     assert "eyJhbGciOi" not in sanitized["nested"]["note"]
+    assert "sk_live_secret_987654321" not in sanitized["nested"]["note"]
 
 
 def test_error_classification_variants() -> None:

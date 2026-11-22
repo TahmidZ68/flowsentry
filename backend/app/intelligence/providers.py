@@ -106,14 +106,17 @@ class GeminiProvider:
     def analyze(self, evidence_payload: dict[str, Any]) -> ProviderResult:
         url = (
             f"https://generativelanguage.googleapis.com/v1beta/models/"
-            f"{self.model}:generateContent?key={self.api_key}"
+            f"{self.model}:generateContent"
         )
         prompt_text = f"{SYSTEM_PROMPT}\n\nEVIDENCE:\n{json.dumps(evidence_payload)}"
         try:
             with httpx.Client(timeout=20.0, transport=self._transport) as client:
                 resp = client.post(
                     url,
-                    headers={"Content-Type": "application/json"},
+                    headers={
+                        "Content-Type": "application/json",
+                        "x-goog-api-key": self.api_key,
+                    },
                     json={
                         "contents": [{"parts": [{"text": prompt_text}]}],
                         "generationConfig": {

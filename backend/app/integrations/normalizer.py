@@ -32,7 +32,12 @@ SENSITIVE_KEYS = {
 SENSITIVE_VALUE_PATTERNS = [
     re.compile(r"(Bearer\s+)[A-Za-z0-9\-._~+/]+=*", re.IGNORECASE),
     re.compile(r"(Basic\s+)[A-Za-z0-9+/]+=*", re.IGNORECASE),
-    re.compile(r"sk-[A-Za-z0-9]{16,}"),
+    re.compile(
+        r"((?:access_token|refresh_token|id_token|api_key|apikey|client_secret|password|secret|token)\s*[:=]\s*)([^\s,;\"'&]+)",
+        re.IGNORECASE,
+    ),
+    re.compile(r"(?:sk|pk|rk|fs)_(?:live|test)_[A-Za-z0-9_\-]{8,}", re.IGNORECASE),
+    re.compile(r"sk-[A-Za-z0-9_\-]{16,}"),
     re.compile(r"eyJ[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+"),
 ]
 
