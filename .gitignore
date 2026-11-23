@@ -5,6 +5,8 @@
 !.env.production.example
 *.pem
 *.key
+infrastructure/nginx/nginx.tls.conf
+infrastructure/nginx/certbot/
 
 # Python
 __pycache__/

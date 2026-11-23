@@ -1,0 +1,54 @@
+# ==============================================================================
+# FlowSentry Remote Staging / Production Docker Compose Override
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.staging.yml --profile prod up -d --build
+#
+# Hardening applied over base docker-compose.yml:
+# 1. Removes direct host port bindings for postgres, redis, backend, and frontend
+#    so ONLY Nginx (80/443) is reachable externally.
+# 2. Enables password-authenticated Redis (--requirepass) with AOF persistence.
+# 3. Mounts TLS Nginx config & Let's Encrypt certificate directories on Nginx.
+# 4. Caps container memory and Celery worker concurrency for a single-VPS host.
+# ==============================================================================
+
+services:
+  postgres:
+    ports: !reset []
+    mem_limit: 768m
+
+  redis:
+    ports: !reset []
+    command: ["sh", "-c", "exec redis-server --appendonly yes --requirepass \"$$REDIS_PASSWORD\""]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD must be set in .env for staging}
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=\"$$REDIS_PASSWORD\" redis-cli ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    mem_limit: 256m
+
+  backend:
+    ports: !reset []
+    mem_limit: 768m
+
+  worker:
+    command: celery -A app.workers.celery_app worker --loglevel=info --concurrency=2
+    mem_limit: 512m
+
+  beat:
+    mem_limit: 256m
+
+  frontend:
+    ports: !reset []
+    mem_limit: 512m
+
+  nginx:
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infrastructure/nginx/nginx.tls.conf:/etc/nginx/nginx.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - ./infrastructure/nginx/certbot:/var/www/certbot:ro
+    mem_limit: 128m

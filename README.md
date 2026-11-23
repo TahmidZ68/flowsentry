@@ -102,6 +102,10 @@ npm run build
 - [Phase 12 Staging Deployment Checklist](docs/STAGING_DEPLOYMENT_CHECKLIST.md)
 - [Phase 12 Production Configuration](docs/PRODUCTION_CONFIGURATION.md)
 - [Phase 12 Production Status](docs/PRODUCTION_STATUS.md)
+- [Phase 13 Staging Deployment Report](docs/STAGING_DEPLOYMENT_REPORT.md)
+- [Phase 13 Staging Smoke Tests](docs/STAGING_SMOKE_TESTS.md)
+- [Phase 13 Staging Operations](docs/STAGING_OPERATIONS.md)
+- [Phase 13 Staging Rollback](docs/STAGING_ROLLBACK.md)
 
 ---
 
