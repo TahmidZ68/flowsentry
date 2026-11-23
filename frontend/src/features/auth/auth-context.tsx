@@ -45,14 +45,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     setError(null);
     try {
-      let token = getStoredToken();
-      if (!token && AUTH_MODE === "supabase") {
+      let token: string | null = null;
+      if (AUTH_MODE === "supabase") {
         const supabase = getSupabaseClient();
         if (supabase) {
           const { data } = await supabase.auth.getSession();
           token = data.session?.access_token ?? null;
-          if (token) setStoredToken(token);
+          setStoredToken(token);
+        } else {
+          token = getStoredToken();
         }
+      } else {
+        token = getStoredToken();
       }
       if (!token) {
         setUser(null);
@@ -92,8 +96,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         void refreshAuth();
       }
     });
+
+    if (AUTH_MODE !== "supabase") {
+      return () => {
+        active = false;
+      };
+    }
+
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      return () => {
+        active = false;
+      };
+    }
+
+    const { data: subscription } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!active) return;
+      if (event === "SIGNED_OUT" || !session?.access_token) {
+        setStoredToken(null);
+        setUser(null);
+        setWorkspaces([]);
+        setActiveWorkspaceIdState(null);
+        return;
+      }
+      setStoredToken(session.access_token);
+    });
+
     return () => {
       active = false;
+      subscription.subscription.unsubscribe();
     };
   }, [refreshAuth]);
 

@@ -20,7 +20,13 @@ class AuthenticationError(Exception):
 
 @lru_cache(maxsize=4)
 def _get_jwk_client(jwks_url: str) -> PyJWKClient:
-    return PyJWKClient(jwks_url, cache_keys=True)
+    return PyJWKClient(
+        jwks_url,
+        cache_keys=True,
+        cache_jwk_set=True,
+        lifespan=300,
+        timeout=10,
+    )
 
 
 def verify_jwt_token(token: str) -> dict[str, Any]:
@@ -55,6 +61,7 @@ def verify_jwt_token(token: str) -> dict[str, Any]:
                 secret,
                 algorithms=["HS256"],
                 audience="authenticated",
+                options={"require": ["exp", "sub"]},
             )
         except jwt.PyJWTError as exc:
             raise AuthenticationError(f"Invalid token: {exc}") from exc
@@ -74,6 +81,7 @@ def verify_jwt_token(token: str) -> dict[str, Any]:
                 algorithms=[alg],
                 audience="authenticated",
                 issuer=expected_issuer,
+                options={"require": ["exp", "sub"]},
             )
         except jwt.PyJWTError as exc:
             raise AuthenticationError(f"Invalid JWKS-signed token: {exc}") from exc
@@ -83,6 +91,7 @@ def verify_jwt_token(token: str) -> dict[str, Any]:
             decode_kwargs: dict[str, Any] = {
                 "algorithms": ["HS256"],
                 "audience": "authenticated",
+                "options": {"require": ["exp", "sub"]},
             }
             if expected_issuer:
                 decode_kwargs["issuer"] = expected_issuer

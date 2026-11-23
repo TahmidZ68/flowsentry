@@ -1,4 +1,12 @@
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const rawApiUrl = process.env.NEXT_PUBLIC_API_URL;
+export const API_BASE_URL =
+  rawApiUrl === undefined ? "http://localhost:8000" : rawApiUrl.replace(/\/$/, "");
+
+export function resolvePublicApiOrigin(): string {
+  if (API_BASE_URL) return API_BASE_URL;
+  if (typeof window !== "undefined") return window.location.origin;
+  return "http://localhost:8000";
+}
 
 export class ApiError extends Error {
   status: number;

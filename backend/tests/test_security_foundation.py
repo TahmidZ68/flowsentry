@@ -148,3 +148,78 @@ def test_supabase_jwks_rs256_verification() -> None:
         assert decoded["email"] == "supabase@example.com"
         with pytest.raises(AuthenticationError):
             verify_jwt_token(wrong_iss_token)
+
+
+def test_production_config_requires_supabase_and_rejects_missing_exp_and_supports_rotation() -> None:
+    with pytest.raises(ValidationError):
+        Settings(
+            ENVIRONMENT="production",
+            AUTH_MODE="supabase",
+            ENCRYPTION_KEY="dummy",
+            DEBUG=False,
+        )
+
+    valid_prod = Settings(
+        ENVIRONMENT="production",
+        AUTH_MODE="supabase",
+        SUPABASE_URL="https://example.supabase.co",
+        ENCRYPTION_KEY="dummy",
+        ALLOWED_ORIGINS="https://app.flowsentry.example",
+        DEBUG=False,
+    )
+    assert valid_prod.AUTH_MODE == "supabase"
+
+    user_id = str(uuid.uuid4())
+    missing_exp = jwt.encode(
+        {"sub": user_id, "email": "owner@flowsentry.io", "aud": "authenticated"},
+        "test-local-dev-jwt-secret-at-least-32-chars-long",
+        algorithm="HS256",
+    )
+    with pytest.raises(AuthenticationError):
+        verify_jwt_token(missing_exp)
+
+    key_1 = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    key_2 = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    pub_keys = {"kid-1": key_1.public_key(), "kid-2": key_2.public_key()}
+
+    def _rotate_lookup(jwt_str: str) -> SimpleNamespace:
+        kid = jwt.get_unverified_header(jwt_str)["kid"]
+        return SimpleNamespace(key=pub_keys[kid])
+
+    tok_1 = jwt.encode(
+        {
+            "sub": user_id,
+            "email": "rotated@example.com",
+            "aud": "authenticated",
+            "iss": "https://example.supabase.co/auth/v1",
+            "exp": int((datetime.now(UTC) + timedelta(minutes=10)).timestamp()),
+        },
+        key_1,
+        algorithm="RS256",
+        headers={"kid": "kid-1"},
+    )
+    tok_2 = jwt.encode(
+        {
+            "sub": user_id,
+            "email": "rotated@example.com",
+            "aud": "authenticated",
+            "iss": "https://example.supabase.co/auth/v1",
+            "exp": int((datetime.now(UTC) + timedelta(minutes=10)).timestamp()),
+        },
+        key_2,
+        algorithm="RS256",
+        headers={"kid": "kid-2"},
+    )
+    mock_settings = Settings(
+        ENVIRONMENT="staging",
+        AUTH_MODE="supabase",
+        SUPABASE_URL="https://example.supabase.co",
+        ENCRYPTION_KEY="dummy",
+    )
+    jwk_rotator = SimpleNamespace(get_signing_key_from_jwt=_rotate_lookup)
+    with (
+        patch("app.core.security.get_settings", return_value=mock_settings),
+        patch("app.core.security._get_jwk_client", return_value=jwk_rotator),
+    ):
+        assert verify_jwt_token(tok_1)["email"] == "rotated@example.com"
+        assert verify_jwt_token(tok_2)["email"] == "rotated@example.com"

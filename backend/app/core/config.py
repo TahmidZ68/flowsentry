@@ -73,6 +73,8 @@ class Settings(BaseSettings):
                 raise ValueError("DEBUG must be false when ENVIRONMENT=production")
             if not self.ENCRYPTION_KEY:
                 raise ValueError("ENCRYPTION_KEY must be set in production")
+            if not self.SUPABASE_URL.strip() and not self.SUPABASE_JWT_SECRET.strip():
+                raise ValueError("SUPABASE_URL or SUPABASE_JWT_SECRET must be set in production")
             if "*" in self.allowed_origins_list:
                 raise ValueError("Wildcard CORS origins are forbidden in production")
         return self

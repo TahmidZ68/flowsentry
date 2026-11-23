@@ -164,3 +164,73 @@ def test_notification_dispatch_suppression_retry_and_email(client: TestClient, d
     hist = client.get(f"/api/v1/workspaces/{ws_id}/notifications", headers=headers)
     assert hist.status_code == 200
     assert hist.json()["total"] >= 3
+
+
+def test_deliver_email_supports_starttls_and_implicit_ssl(monkeypatch) -> None:
+    from types import SimpleNamespace
+
+    events: list[str] = []
+
+    class FakeSMTP:
+        def __init__(self, host: str, port: int, timeout: int = 5) -> None:
+            events.append(f"smtp:{host}:{port}")
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def starttls(self) -> None:
+            events.append("starttls")
+
+        def login(self, user: str, _password: str) -> None:
+            events.append(f"login:{user}")
+
+        def send_message(self, msg) -> None:
+            events.append(f"send:{msg['To']}")
+
+    class FakeSMTPSSL(FakeSMTP):
+        def __init__(self, host: str, port: int, timeout: int = 5) -> None:
+            events.append(f"smtp_ssl:{host}:{port}")
+
+    monkeypatch.setattr(
+        notification_service,
+        "get_settings",
+        lambda: SimpleNamespace(
+            SMTP_HOST="smtp.example.com",
+            SMTP_PORT=587,
+            SMTP_USER="mailer",
+            SMTP_PASSWORD="pw",
+            SMTP_FROM_EMAIL="alerts@flowsentry.example",
+            SMTP_USE_TLS=True,
+        ),
+    )
+    notification_service._deliver_email(
+        ["oncall@example.com"],
+        subject="Test 587",
+        body="Body",
+        smtp_client_factory=FakeSMTP,
+    )
+    assert events == ["smtp:smtp.example.com:587", "starttls", "login:mailer", "send:oncall@example.com"]
+
+    events.clear()
+    monkeypatch.setattr(
+        notification_service,
+        "get_settings",
+        lambda: SimpleNamespace(
+            SMTP_HOST="smtp.example.com",
+            SMTP_PORT=465,
+            SMTP_USER="mailer",
+            SMTP_PASSWORD="pw",
+            SMTP_FROM_EMAIL="alerts@flowsentry.example",
+            SMTP_USE_TLS=True,
+        ),
+    )
+    monkeypatch.setattr(notification_service.smtplib, "SMTP_SSL", FakeSMTPSSL)
+    notification_service._deliver_email(
+        ["oncall@example.com"],
+        subject="Test 465",
+        body="Body",
+    )
+    assert events == ["smtp_ssl:smtp.example.com:465", "login:mailer", "send:oncall@example.com"]

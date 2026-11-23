@@ -7,6 +7,7 @@ import ProjectsPage from "@/app/(app)/projects/page";
 import { AppShell, NAV_ITEMS } from "@/components/layout/app-shell";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui/states";
 import * as authContextModule from "@/features/auth/auth-context";
+import { resolvePublicApiOrigin } from "@/lib/api-client";
 import { apiService } from "@/services/api";
 
 function renderWithQuery(ui: React.ReactElement) {
@@ -200,5 +201,9 @@ describe("FlowSentry Phase 1 Frontend", () => {
         environment: "staging",
       });
     });
+  });
+
+  it("resolves public API origin without crashing in browser or SSR contexts", () => {
+    expect(resolvePublicApiOrigin()).toBe("http://localhost:8000");
   });
 });

@@ -98,6 +98,10 @@ npm run build
 - [Phase 11 Security Test Results](docs/SECURITY_TEST_RESULTS.md)
 - [Phase 11 Beta Readiness](docs/BETA_READINESS.md)
 - [Phase 11 Known Limitations](docs/KNOWN_LIMITATIONS.md)
+- [Phase 12 External Service Setup](docs/EXTERNAL_SERVICE_SETUP.md)
+- [Phase 12 Staging Deployment Checklist](docs/STAGING_DEPLOYMENT_CHECKLIST.md)
+- [Phase 12 Production Configuration](docs/PRODUCTION_CONFIGURATION.md)
+- [Phase 12 Production Status](docs/PRODUCTION_STATUS.md)
 
 ---
 

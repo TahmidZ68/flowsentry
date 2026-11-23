@@ -195,8 +195,11 @@ def _deliver_email(
     msg["To"] = ", ".join(recipients)
     msg.set_content(body)
 
-    with smtp_client_factory(settings.SMTP_HOST, settings.SMTP_PORT, timeout=5) as server:
-        if settings.SMTP_USE_TLS:
+    use_implicit_ssl = smtp_client_factory is smtplib.SMTP and settings.SMTP_PORT == 465 and settings.SMTP_USE_TLS
+    factory = smtplib.SMTP_SSL if use_implicit_ssl else smtp_client_factory
+
+    with factory(settings.SMTP_HOST, settings.SMTP_PORT, timeout=5) as server:
+        if settings.SMTP_USE_TLS and not use_implicit_ssl:
             server.starttls()
         if settings.SMTP_USER and settings.SMTP_PASSWORD:
             server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)

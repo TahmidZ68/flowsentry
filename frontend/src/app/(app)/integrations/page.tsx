@@ -12,7 +12,7 @@ import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/ca
 import { Input, Select } from "@/components/ui/input";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui/states";
 import { useAuth } from "@/features/auth/auth-context";
-import { API_BASE_URL } from "@/lib/api-client";
+import { resolvePublicApiOrigin } from "@/lib/api-client";
 import { formatRelativeDate } from "@/lib/utils";
 import { apiService } from "@/services/api";
 
@@ -152,7 +152,7 @@ export default function IntegrationsPage() {
           </p>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="font-mono text-xs text-foreground">
-              POST {API_BASE_URL.replace(/\/$/, "")}
+              POST {resolvePublicApiOrigin()}
               {createdSecret.path}
             </p>
             <Button
@@ -161,7 +161,7 @@ export default function IntegrationsPage() {
               variant="secondary"
               onClick={() => {
                 void navigator.clipboard?.writeText(
-                  `${API_BASE_URL.replace(/\/$/, "")}${createdSecret.path}`
+                  `${resolvePublicApiOrigin()}${createdSecret.path}`
                 );
                 setActionMsg("Webhook URL copied to clipboard.");
               }}
