@@ -6,7 +6,7 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 
-from app.core.plans import get_plan_limits
+from app.core.entitlements import get_effective_workspace_limits
 from app.db.session import SessionLocal
 from app.detection.engine import _ensure_utc, _upsert_incident
 from app.intelligence.service import execute_investigation
@@ -168,7 +168,8 @@ def cleanup_expired_records() -> dict[str, int]:
     with SessionLocal() as db:
         workspaces = list(db.scalars(select(Workspace)).all())
         for ws in workspaces:
-            retention_days = get_plan_limits(ws.plan).retention_days
+            limits, _ = get_effective_workspace_limits(ws.plan)
+            retention_days = limits.retention_days
             cutoff = now - timedelta(days=retention_days)
             res_exec = db.execute(
                 delete(Execution).where(

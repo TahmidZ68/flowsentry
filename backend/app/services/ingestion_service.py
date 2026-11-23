@@ -7,7 +7,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.plans import get_plan_limits
+from app.core.entitlements import get_effective_workspace_limits
 from app.detection.engine import DetectionOutcome, evaluate_execution_detection
 from app.integrations.normalizer import classify_error_type, sanitize_payload, sanitize_string
 from app.models.identity import UsageRecord, Workspace
@@ -57,9 +57,9 @@ def _increment_execution_usage(db: Session, *, workspace: Workspace) -> None:
             UsageRecord.period_month == period,
         )
     )
-    limits = get_plan_limits(workspace.plan)
+    limits, enforced = get_effective_workspace_limits(workspace.plan)
     current_count = usage.executions_count if usage else 0
-    if not workspace.is_demo and current_count >= limits.max_monthly_executions:
+    if enforced and not workspace.is_demo and current_count >= limits.max_monthly_executions:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={

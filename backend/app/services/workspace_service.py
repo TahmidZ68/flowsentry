@@ -8,7 +8,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.core.plans import get_plan_limits
+from app.core.entitlements import get_effective_workspace_limits
 from app.models.identity import Project, User, Workspace, WorkspaceMember
 from app.services.audit_service import record_audit_log
 
@@ -160,11 +160,11 @@ def add_member_by_email(
     email: str,
     role: str,
 ) -> tuple[WorkspaceMember, User]:
-    limits = get_plan_limits(workspace.plan)
+    limits, enforced = get_effective_workspace_limits(workspace.plan)
     current_count = (
         db.scalar(select(func.count(WorkspaceMember.id)).where(WorkspaceMember.workspace_id == workspace.id)) or 0
     )
-    if current_count >= limits.max_members:
+    if enforced and not workspace.is_demo and current_count >= limits.max_members:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={

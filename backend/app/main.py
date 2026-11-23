@@ -12,6 +12,7 @@ from sqlalchemy import text
 
 from app.api.v1.router import api_v1_router
 from app.core.config import get_settings
+from app.core.extensions import extension_registry
 from app.core.logging import configure_logging
 from app.db.session import SessionLocal
 
@@ -105,4 +106,7 @@ def ready() -> JSONResponse:
     )
 
 
+extension_registry.load_entrypoint_extensions()
 app.include_router(api_v1_router, prefix=settings.API_V1_PREFIX)
+for extra_router in extension_registry.extra_routers:
+    app.include_router(extra_router, prefix=settings.API_V1_PREFIX)

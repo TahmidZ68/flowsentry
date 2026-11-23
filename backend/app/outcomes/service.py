@@ -10,7 +10,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.core.plans import get_plan_limits
+from app.core.entitlements import get_effective_workspace_limits
 from app.core.ssrf import SSRFValidationError, build_ssrf_safe_transport, validate_outbound_url
 from app.detection.engine import _ensure_utc, _upsert_incident
 from app.models.identity import Workspace
@@ -131,11 +131,11 @@ def create_monitor(
     actor_id: uuid.UUID,
     payload: OutcomeMonitorCreate,
 ) -> tuple[OutcomeMonitor, str]:
-    limits = get_plan_limits(workspace.plan)
+    limits, enforced = get_effective_workspace_limits(workspace.plan)
     current = int(
         db.scalar(select(func.count(OutcomeMonitor.id)).where(OutcomeMonitor.workspace_id == workspace.id)) or 0
     )
-    if not workspace.is_demo and current >= limits.max_outcome_monitors:
+    if enforced and not workspace.is_demo and current >= limits.max_outcome_monitors:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={

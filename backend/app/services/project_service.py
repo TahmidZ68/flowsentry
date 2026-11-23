@@ -6,7 +6,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.core.plans import get_plan_limits
+from app.core.entitlements import get_effective_workspace_limits
 from app.models.identity import Project, Workspace
 from app.services.audit_service import record_audit_log
 
@@ -39,9 +39,9 @@ def create_project(
     description: str | None,
     environment: str,
 ) -> Project:
-    limits = get_plan_limits(workspace.plan)
+    limits, enforced = get_effective_workspace_limits(workspace.plan)
     current_count = db.scalar(select(func.count(Project.id)).where(Project.workspace_id == workspace.id)) or 0
-    if current_count >= limits.max_projects:
+    if enforced and not workspace.is_demo and current_count >= limits.max_projects:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={

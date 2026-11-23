@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import enforce_rate_limit, get_current_user
 from app.core.config import get_settings
+from app.core.entitlements import get_entitlement_policy
+from app.core.extensions import extension_registry
 from app.core.security import create_local_dev_token
 from app.db.session import get_db
 from app.models.identity import User
@@ -74,3 +76,17 @@ def issue_dev_token(
 
     token = create_local_dev_token(user_id=user.id, email=user.email, name=user.name)
     return DevTokenResponse(access_token=token, user=UserRead.model_validate(user))
+
+
+@router.get("/capabilities", tags=["System"])
+def get_capabilities() -> dict[str, object]:
+    """Return active edition, entitlement enforcement status, and registered core/plugin capabilities."""
+    settings = get_settings()
+    policy = get_entitlement_policy()
+    return {
+        "edition": settings.EDITION,
+        "saas_quotas_enabled": policy.enforces_quotas(),
+        "auth_mode": settings.AUTH_MODE,
+        "connectors": sorted(extension_registry.connectors.keys()),
+        "notification_channels": sorted(extension_registry.notification_channels.keys()),
+    }

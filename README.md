@@ -106,15 +106,23 @@ npm run build
 - [Phase 13 Staging Smoke Tests](docs/STAGING_SMOKE_TESTS.md)
 - [Phase 13 Staging Operations](docs/STAGING_OPERATIONS.md)
 - [Phase 13 Staging Rollback](docs/STAGING_ROLLBACK.md)
+- [Open-Core Architecture Audit](docs/OPEN_CORE_ARCHITECTURE_AUDIT.md)
+- [Feature Licensing Matrix](docs/FEATURE_LICENSING_MATRIX.md)
+- [Third-Party License Audit](docs/THIRD_PARTY_LICENSE_AUDIT.md)
+- [Commercial Boundary Proposal](docs/COMMERCIAL_BOUNDARY_PROPOSAL.md)
+- [Open-Source Release Checklist](docs/OPEN_SOURCE_RELEASE_CHECKLIST.md)
 
 ---
 
 ## Roadmap
-- Additional automation platform connectors (Make, Zapier, Temporal) using the canonical `NormalizedExecutionEvent` interface.
-- Stripe subscription checkout & webhook billing activation via `BillingProvider`.
-- SAML/SSO enterprise workspace authentication.
+- Additional automation platform connectors (Make, Zapier, Temporal) via `ConnectorAdapter` SPI and `NormalizedExecutionEvent`.
+- Enterprise SAML/OIDC SSO, escalation channels, and agency fleet reporting in Commercial / Cloud editions.
+- FlowSentry Cloud managed hosting & Stripe billing in separate commercial control-plane services.
 
 ---
 
-## License
-Licensing terms are pending final confirmation by the project owner. Do not redistribute commercially until `LICENSE` is added.
+## Licensing & Trademarks
+- **Community Edition (`LICENSE`):** Licensed under the **GNU Affero General Public License v3.0 only (`AGPL-3.0-only`)**. See [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE).
+- **Commercial / Cloud License:** Commercial licenses for proprietary Enterprise extensions and hosted FlowSentry Cloud services are available separately from the project maintainers.
+- **Contributions:** External contributions require agreement to [`CLA.md`](CLA.md).
+- **Trademarks:** *n8n*, *Supabase*, *Slack*, *OpenAI*, *Google Gemini*, *HubSpot*, and *Stripe* are trademarks of their respective owners. FlowSentry is an independent project and is not affiliated with or endorsed by these third parties.

@@ -10,7 +10,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.encryption import decrypt_json, encrypt_json
-from app.core.plans import get_plan_limits
+from app.core.entitlements import get_effective_workspace_limits
 from app.core.security import hash_secret_token
 from app.core.ssrf import SSRFValidationError, validate_outbound_url
 from app.integrations.n8n import N8nClient, N8nClientError, parse_n8n_api_execution
@@ -56,7 +56,7 @@ def create_integration(
     actor_id: uuid.UUID,
     payload: IntegrationCreate,
 ) -> tuple[Integration, str]:
-    limits = get_plan_limits(workspace.plan)
+    limits, enforced = get_effective_workspace_limits(workspace.plan)
     active_count = (
         db.scalar(
             select(func.count(Integration.id)).where(
@@ -66,7 +66,7 @@ def create_integration(
         )
         or 0
     )
-    if active_count >= limits.max_integrations:
+    if enforced and not workspace.is_demo and active_count >= limits.max_integrations:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={

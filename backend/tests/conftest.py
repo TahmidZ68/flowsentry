@@ -13,6 +13,7 @@ from sqlalchemy.pool import StaticPool
 
 # Set test environment before importing app modules
 os.environ["ENVIRONMENT"] = "test"
+os.environ["ENFORCE_SAAS_PLANS"] = "true"
 os.environ["AUTH_MODE"] = "local_dev"
 os.environ["ENCRYPTION_KEY"] = Fernet.generate_key().decode("utf-8")
 os.environ["LOCAL_DEV_JWT_SECRET"] = "test-local-dev-jwt-secret-at-least-32-chars-long"

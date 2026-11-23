@@ -11,7 +11,7 @@ import httpx
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.core.plans import get_plan_limits
+from app.core.entitlements import get_effective_workspace_limits
 from app.integrations.normalizer import sanitize_payload
 from app.intelligence.providers import (
     AIProviderError,
@@ -91,7 +91,7 @@ def _check_and_consume_ai_quota(db: Session, *, workspace: Workspace) -> bool:
     if workspace.is_demo:
         return True
     period = current_period_month()
-    limits = get_plan_limits(workspace.plan)
+    limits, enforced = get_effective_workspace_limits(workspace.plan)
     usage = db.scalar(
         select(UsageRecord).where(
             UsageRecord.workspace_id == workspace.id,
@@ -99,7 +99,7 @@ def _check_and_consume_ai_quota(db: Session, *, workspace: Workspace) -> bool:
         )
     )
     current_ai = usage.ai_investigations_count if usage else 0
-    if current_ai >= limits.max_monthly_ai_investigations:
+    if enforced and current_ai >= limits.max_monthly_ai_investigations:
         return False
 
     if usage is None:

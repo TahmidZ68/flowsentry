@@ -5,7 +5,8 @@ from datetime import UTC, datetime
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.core.plans import get_plan_limits
+from app.core.config import get_settings
+from app.core.entitlements import get_effective_workspace_limits
 from app.models.identity import Project, UsageRecord, Workspace, WorkspaceMember
 from app.models.monitoring import Integration
 from app.models.outcomes import OutcomeMonitor
@@ -24,7 +25,8 @@ def get_workspace_usage_summary(db: Session, *, workspace: Workspace) -> UsageSu
             UsageRecord.period_month == period,
         )
     )
-    limits = get_plan_limits(workspace.plan)
+    settings = get_settings()
+    limits, enforced = get_effective_workspace_limits(workspace.plan)
 
     projects_count = db.scalar(select(func.count(Project.id)).where(Project.workspace_id == workspace.id)) or 0
     integrations_count = (
@@ -46,6 +48,8 @@ def get_workspace_usage_summary(db: Session, *, workspace: Workspace) -> UsageSu
     return UsageSummaryRead(
         workspace_id=workspace.id,
         period_month=period,
+        edition=settings.EDITION,
+        saas_quotas_enabled=enforced,
         plan=PlanLimitsRead(
             name=limits.name,
             display_name=limits.display_name,

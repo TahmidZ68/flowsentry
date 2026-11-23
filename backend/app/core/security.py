@@ -12,6 +12,7 @@ import jwt
 from jwt import PyJWKClient
 
 from app.core.config import get_settings
+from app.core.extensions import extension_registry
 
 
 class AuthenticationError(Exception):
@@ -39,6 +40,10 @@ def verify_jwt_token(token: str) -> dict[str, Any]:
       tokens signed with LOCAL_DEV_JWT_SECRET.
     """
     settings = get_settings()
+
+    plugin_auth = extension_registry.auth_providers.get(settings.AUTH_MODE)
+    if plugin_auth is not None:
+        return plugin_auth.verify_token(token)
 
     try:
         header = jwt.get_unverified_header(token)

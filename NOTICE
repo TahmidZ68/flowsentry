@@ -1,0 +1,35 @@
+FlowSentry
+Copyright (c) 2026 Tahmid Zoayed
+
+This project is licensed under the GNU Affero General Public License v3.0 only
+(SPDX-License-Identifier: AGPL-3.0-only). See the LICENSE file for the full text.
+
+Commercial licenses for FlowSentry Enterprise / Cloud extensions are available
+separately from the project maintainers.
+
+================================================================================
+THIRD-PARTY SOFTWARE NOTICES AND ATTRIBUTIONS
+================================================================================
+
+FlowSentry incorporates or depends on unmodified third-party open-source software
+packages, including the following notable attributions:
+
+Backend (Python):
+- FastAPI, Pydantic, SQLAlchemy, Alembic, PyJWT, Redis-py, PyYAML, Mako (MIT)
+- Uvicorn, Celery, HTTPX, Click, MarkupSafe, python-dotenv, Websockets (BSD-3-Clause)
+- Cryptography (Apache-2.0 OR BSD-3-Clause)
+- python-multipart, Requests (Apache-2.0)
+- psycopg & psycopg-binary (GNU Lesser General Public License v3 / LGPLv3)
+- certifi (Mozilla Public License 2.0 / MPL-2.0)
+
+Frontend (Node.js / TypeScript):
+- Next.js, React, React DOM, TanStack Query, React Hook Form, Recharts, Zod,
+  Tailwind CSS, Supabase JS Client (MIT)
+- lucide-react (ISC)
+- TypeScript (Apache-2.0)
+- @vercel/og (Mozilla Public License 2.0 / MPL-2.0)
+- @img/sharp-* (Apache-2.0 AND LGPL-3.0-or-later)
+- caniuse-lite (Creative Commons Attribution 4.0 / CC-BY-4.0)
+
+Each third-party package remains subject to its respective upstream license and
+copyright notices.

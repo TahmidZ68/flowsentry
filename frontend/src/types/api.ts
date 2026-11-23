@@ -80,6 +80,8 @@ export interface PlanLimits {
 export interface UsageSummary {
   workspace_id: string;
   period_month: string;
+  edition?: string;
+  saas_quotas_enabled?: boolean;
   plan: PlanLimits;
   executions_count: number;
   ai_investigations_count: number;

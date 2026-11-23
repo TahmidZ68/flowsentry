@@ -150,13 +150,28 @@ export default function SettingsPage() {
         <Card>
           <CardHeader>
             <div>
-              <CardTitle>Plan & Usage</CardTitle>
-              <CardDescription>Server-enforced workspace quotas</CardDescription>
+              <CardTitle>
+                {usageQuery.data?.saas_quotas_enabled === false ||
+                usageQuery.data?.plan.name === "community"
+                  ? "Edition & Usage"
+                  : "Plan & Usage"}
+              </CardTitle>
+              <CardDescription>
+                {usageQuery.data?.saas_quotas_enabled === false ||
+                usageQuery.data?.plan.name === "community"
+                  ? "Unmetered self-hosted telemetry usage"
+                  : "Server-enforced workspace quotas"}
+              </CardDescription>
             </div>
             {usageQuery.data ? (
-              <Badge variant="accent">
-                {usageQuery.data.plan.display_name} (${usageQuery.data.plan.price_monthly_usd}/mo)
-              </Badge>
+              usageQuery.data.saas_quotas_enabled === false ||
+              usageQuery.data.plan.name === "community" ? (
+                <Badge variant="healthy">{usageQuery.data.plan.display_name}</Badge>
+              ) : (
+                <Badge variant="accent">
+                  {usageQuery.data.plan.display_name} (${usageQuery.data.plan.price_monthly_usd}/mo)
+                </Badge>
+              )
             ) : null}
           </CardHeader>
 
@@ -165,33 +180,45 @@ export default function SettingsPage() {
           ) : usageQuery.isLoading ? (
             <LoadingState label="Loading usage..." />
           ) : usageQuery.data ? (
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="rounded-md border border-border bg-background p-3">
-                <p className="text-muted">Monthly Executions</p>
-                <p className="mt-1 text-sm font-semibold text-foreground">
-                  {usageQuery.data.executions_count} / {usageQuery.data.plan.max_monthly_executions}
-                </p>
-              </div>
-              <div className="rounded-md border border-border bg-background p-3">
-                <p className="text-muted">AI Investigations</p>
-                <p className="mt-1 text-sm font-semibold text-foreground">
-                  {usageQuery.data.ai_investigations_count} /{" "}
-                  {usageQuery.data.plan.max_monthly_ai_investigations}
-                </p>
-              </div>
-              <div className="rounded-md border border-border bg-background p-3">
-                <p className="text-muted">Members</p>
-                <p className="mt-1 text-sm font-semibold text-foreground">
-                  {usageQuery.data.members_count} / {usageQuery.data.plan.max_members}
-                </p>
-              </div>
-              <div className="rounded-md border border-border bg-background p-3">
-                <p className="text-muted">Retention Window</p>
-                <p className="mt-1 text-sm font-semibold text-foreground">
-                  {usageQuery.data.plan.retention_days} days
-                </p>
-              </div>
-            </div>
+            (() => {
+              const showLimits =
+                usageQuery.data.saas_quotas_enabled !== false &&
+                usageQuery.data.plan.name !== "community";
+              return (
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="rounded-md border border-border bg-background p-3">
+                    <p className="text-muted">Monthly Executions</p>
+                    <p className="mt-1 text-sm font-semibold text-foreground">
+                      {showLimits
+                        ? `${usageQuery.data.executions_count} / ${usageQuery.data.plan.max_monthly_executions}`
+                        : usageQuery.data.executions_count}
+                    </p>
+                  </div>
+                  <div className="rounded-md border border-border bg-background p-3">
+                    <p className="text-muted">AI Investigations</p>
+                    <p className="mt-1 text-sm font-semibold text-foreground">
+                      {showLimits
+                        ? `${usageQuery.data.ai_investigations_count} / ${usageQuery.data.plan.max_monthly_ai_investigations}`
+                        : usageQuery.data.ai_investigations_count}
+                    </p>
+                  </div>
+                  <div className="rounded-md border border-border bg-background p-3">
+                    <p className="text-muted">Members</p>
+                    <p className="mt-1 text-sm font-semibold text-foreground">
+                      {showLimits
+                        ? `${usageQuery.data.members_count} / ${usageQuery.data.plan.max_members}`
+                        : usageQuery.data.members_count}
+                    </p>
+                  </div>
+                  <div className="rounded-md border border-border bg-background p-3">
+                    <p className="text-muted">Retention Window</p>
+                    <p className="mt-1 text-sm font-semibold text-foreground">
+                      {usageQuery.data.plan.retention_days} days
+                    </p>
+                  </div>
+                </div>
+              );
+            })()
           ) : null}
         </Card>
       </div>

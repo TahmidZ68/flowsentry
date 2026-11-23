@@ -156,6 +156,8 @@ class APIKeyCreateResponse(BaseModel):
 class UsageSummaryRead(BaseModel):
     workspace_id: uuid.UUID
     period_month: str
+    edition: str = "community"
+    saas_quotas_enabled: bool = False
     plan: PlanLimitsRead
     executions_count: int
     ai_investigations_count: int

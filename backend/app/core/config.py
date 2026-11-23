@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     )
 
     APP_NAME: str = "FlowSentry"
+    EDITION: Literal["community", "cloud", "enterprise"] = "community"
+    ENFORCE_SAAS_PLANS: bool = False
+    SELF_HOSTED_RETENTION_DAYS: int = 90
     ENVIRONMENT: Literal["development", "staging", "production", "test"] = "development"
     DEBUG: bool = False
     API_V1_PREFIX: str = "/api/v1"

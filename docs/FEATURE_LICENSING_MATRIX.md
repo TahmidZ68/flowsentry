@@ -1,0 +1,46 @@
+# FlowSentry — Feature Licensing & Edition Matrix
+
+**Classification Key:**
+- **A. Community Core** — Open-source (`AGPL-3.0-only`), required for a genuinely functional self-hosted FlowSentry instance.
+- **B. Commercial Extension** — Separately licensed proprietary modules/connectors or out-of-process enterprise add-ons.
+- **C. Managed Cloud Service** — Hosted SaaS operational control plane, billing, and multi-region infrastructure.
+- **D. Shared Infrastructure** — Core schemas, security primitives, Dockerfiles, and extension SPIs used across both editions.
+- **E. Requires Legal Review** — Items with third-party license notice requirements, API terms, or ownership considerations.
+
+---
+
+## 1. Existing Implemented Features (Verified Against Source Code)
+
+| Feature | Category | Verified File Paths & Symbols | Architectural Dependencies & Open-Core Notes |
+|---|---|---|---|
+| **Normalized Event Schema (`v1.0`) & Sanitizer** | **A. Community Core** | `backend/app/schemas/monitoring.py` (`NormalizedExecutionEvent`), `backend/app/integrations/normalizer.py` (`sanitize_payload`, `classify_error_type`) | Zero external SDK deps; pure Pydantic + regex. Essential shared ingestion contract. |
+| **n8n REST API v1 & Error Trigger Adapter** | **A. Community Core** | `backend/app/integrations/n8n.py` (`N8nClient`, `parse_n8n_error_webhook`, `parse_n8n_api_execution`), `backend/app/api/v1/ingest.py` | Flagship open-source integration; builds community adoption among n8n developers/agencies. |
+| **Direct Custom Webhook Ingestion API** | **A. Community Core** | `backend/app/api/v1/ingest.py` (`ingest_direct_execution`), `backend/app/services/ingestion_service.py` (`get_or_create_custom_integration`) | Enables any custom script/webhook to push normalized execution telemetry. |
+| **Failure, Latency & Frequency Anomaly Detection** | **A. Community Core** | `backend/app/detection/engine.py` (`evaluate_execution_detection`, `compute_incident_fingerprint`, `_detect_performance_anomaly`, `_check_recovery_verification`), `backend/app/workers/tasks.py` (`evaluate_frequency_anomalies`) | Core reliability differentiation; deterministic PostgreSQL + Python logic. |
+| **Incident Lifecycle & Notes** | **A. Community Core** | `backend/app/incidents/service.py`, `backend/app/api/v1/incidents.py`, `frontend/src/app/(app)/incidents/**` | Full incident triage, assignment, status transitions, timeline notes, and auto-resolution. |
+| **All 6 Outcome Monitor Types** | **A. Community Core** | `backend/app/outcomes/service.py` (`evaluate_monitor`, `_evaluate_http_check`), `backend/app/api/v1/outcome_monitors.py`, `frontend/src/app/(app)/monitors/page.tsx` | All 6 (`expected_interval`, `expected_count`, `required_output_fields`, `http_endpoint`, `webhook_confirmation`, `external_record_check`) belong in Core so silent-failure detection is real, not paywalled. *(Note: currently calls `get_plan_limits`.)* |
+| **Deterministic RCA Fallback Engine** | **A. Community Core** | `backend/app/intelligence/providers.py` (`DeterministicFallbackAnalyzer`), `backend/app/intelligence/service.py` | Rule-based root cause analysis without external API keys. |
+| **BYO-Key AI Investigation (`OpenAI`, `Gemini`)** | **A. Community Core** *(BYO Key)* / **C. Managed Cloud** *(Hosted Credits)* | `backend/app/intelligence/providers.py` (`OpenAIProvider`, `GeminiProvider`, `resolve_ai_provider`), `backend/app/schemas/intelligence.py` | Core keeps BYO-key `httpx` client (`OpenAI`/`Gemini`); FlowSentry Cloud provides metered AI credits / pooled keys without user key setup. **E-Review:** Upstream OpenAI/Gemini API terms restrict competing foundation model training (compliant here; prompt sends sanitized workflow failures only). |
+| **Slack Webhook & SMTP Email Notifications** | **A. Community Core** | `backend/app/notifications/service.py` (`_deliver_slack`, `_deliver_email`, `dispatch_incident_event`, `retry_failed_notification`) | Alert suppression, masked target UI, retry ledger, and recovery alerts are essential self-hosted capabilities. |
+| **Workspace Multi-Tenancy, Basic RBAC & API Keys** | **A. Community Core** | `backend/app/models/identity.py` (`Workspace`, `WorkspaceMember`, `Project`, `WorkspaceAPIKey`, `AuditLog`), `backend/app/api/deps.py` (`require_workspace_role`, `require_ingest_auth`) | Workspaces, projects (`production`/`staging`/`development`), 4 roles, API keys, and audit logs belong in Core—**but must NOT be artificially crippled by `max_members=1` in Community Core**. |
+| **Isolated Demo Sandbox** | **A. Community Core** | `backend/app/services/demo_service.py` (`seed_or_reset_demo_workspace`), `backend/app/api/v1/demo.py` | Essential onboarding/evaluation experience (`is_demo=true`). |
+| **Auth Foundation (`local_dev` + Supabase JWKS)** | **D. Shared Infrastructure** *(Core)* / **E. Legal Review** *(Cloud Auth Coupling)* | `backend/app/core/security.py`, `frontend/src/lib/supabase.ts`, `frontend/src/features/auth/auth-context.tsx` | Core needs local username/password or generic OIDC alongside optional Supabase support so self-hosters are not forced onto a hosted Supabase dependency. |
+| **Security Primitives (Fernet, SSRF, Rate Limiter, Log Redaction)** | **D. Shared Infrastructure** | `backend/app/core/encryption.py`, `backend/app/core/ssrf.py`, `backend/app/core/rate_limit.py`, `backend/app/core/logging.py` | Required across both Community and Commercial deployments (`psycopg` LGPLv3 & `cryptography` Apache-2.0/BSD). |
+| **Database Schema & Alembic Migrations (19 Tables)** | **D. Shared Infrastructure** | `backend/app/db/**`, `backend/migrations/versions/56bf9a530d98_initial_schema.py` | Shared core schema. Commercial/Cloud tables (`subscriptions`, `invoices`, `sso_providers`) should live in a separate schema/migration namespace or external service. |
+| **Docker Compose, Nginx TLS & Backup Scripts** | **D. Shared Infrastructure** | `docker-compose.yml`, `docker-compose.staging.yml`, `infrastructure/**`, `scripts/backup_db.sh`, `scripts/restore_db.sh` | Self-hosted + single-node staging runtime infrastructure. |
+| **Plan Tiers, Quotas & Billing Stub (`plans.py`)** | **C. Managed Cloud Service** *(Must decouple from Core)* | `backend/app/core/plans.py` (`PLANS`, `BillingProvider`, `NoopBillingProvider`), `backend/app/services/usage_service.py`, `frontend/src/app/(app)/settings/page.tsx` | **Blocker:** Currently hardcodes SaaS `$19/$59/$149` limits inside `project_service.py`, `workspace_service.py`, `integration_service.py`, `ingestion_service.py`, `outcomes/service.py`, `intelligence/service.py`, and `tasks.py`. Move `UsageRecord` metering to an optional Core metric hook and SaaS plan enforcement to Cloud/Entitlement SPI. |
+
+---
+
+## 2. Planned / Future Capabilities (Proposed Classification)
+
+| Proposed Capability | Category | Status in Repo | Boundary & Separation Design |
+|---|---|---|---|
+| **Enterprise SAML 2.0 / OIDC SSO & SCIM Directory Sync** | **B. Commercial Extension** | Not implemented | Implement behind an `AuthProvider` SPI / external auth proxy; avoid hardcoding inside AGPL `security.py` unless licensed commercially via dual license. |
+| **Proprietary Platform Connectors (`Make`, `Zapier`, `Workato`, `Airflow`, `Temporal`)** | **B. Commercial Extension** | Only documented in Roadmap (`README.md`) | Build against an open `ConnectorAdapter` interface producing `NormalizedExecutionEvent`, hosted as separate worker/connector microservices or separate EE packages under dual licensing. |
+| **Enterprise Incident Routing (`PagerDuty`, `Opsgenie`, `MS Teams`, escalation policies, on-call rotations)** | **B. Commercial Extension** | Not implemented | Implement via `NotificationChannel` plugin interface or outbound webhook dispatchers running out-of-process. |
+| **Cross-Workspace Agency Fleet Management & Client Portals** | **B. Commercial Extension** / **C. Managed Cloud** | Single-workspace UI switcher exists (`auth-context.tsx`) | Multi-client health rollup dashboards, white-label client status portals, and bulk policy templates belong in Commercial Control Plane querying Community/Cloud APIs. |
+| **Advanced Executive Analytics, SLA PDF Exports & Long-Term Warehouse Sync** | **B. Commercial Extension** / **C. Managed Cloud** | Basic 14-day trend exists in `overview.py` | Aggregate BI reporting, custom SLA reports, and Snowflake/BigQuery/S3 log archiving run as separate Cloud/Enterprise services consuming events. |
+| **Stripe Checkout, Subscription Webhooks & Metering** | **C. Managed Cloud Service** | `BillingProvider` protocol stub only (`plans.py`) | Lives strictly in the closed Cloud control plane service; never needed in self-hosted Community Core. |
+| **Managed Multi-Tenant Hosting, Hosted AI Key Pool, Managed Backups & High Availability** | **C. Managed Cloud Service** | Single-server Docker staging scripts only | Operated hosted SaaS infrastructure (Kubernetes/managed Postgres/managed Redis/observability/CDN). |
+| **`@img/sharp` / `caniuse-lite` / `psycopg` / Third-Party Trademarks** | **E. Requires Legal Review** | Transitive runtime dependencies & docs references | See `THIRD_PARTY_LICENSE_AUDIT.md` for notice, attribution, and brand-name clearance (`n8n`, `Supabase`, `HubSpot`, `OpenAI`, `Gemini`, `Slack`). |
