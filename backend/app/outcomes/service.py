@@ -14,6 +14,7 @@ from app.core.plans import get_plan_limits
 from app.core.ssrf import SSRFValidationError, build_ssrf_safe_transport, validate_outbound_url
 from app.detection.engine import _ensure_utc, _upsert_incident
 from app.models.identity import Workspace
+from app.models.incidents import Incident, IncidentNote
 from app.models.monitoring import Execution, ExecutionEvent, Workflow
 from app.models.outcomes import OutcomeMonitor, OutcomeMonitorRun
 from app.schemas.intelligence import OutcomeMonitorCreate, OutcomeMonitorUpdate
@@ -453,6 +454,37 @@ def evaluate_monitor(
         monitor.status = "healthy"
         monitor.last_success_at = now
         monitor.failure_evidence = None
+        open_silent = list(
+            db.scalars(
+                select(Incident).where(
+                    Incident.workspace_id == workspace.id,
+                    Incident.workflow_id == monitor.workflow_id,
+                    Incident.title.endswith(f": Silent failure ({monitor.name})"),
+                    Incident.status.in_(("open", "acknowledged", "investigating", "reopened")),
+                )
+            ).all()
+        )
+        for inc in open_silent:
+            inc.status = "resolved"
+            inc.resolved_at = now
+            inc.resolution_reason = f"auto_resolved: Outcome monitor '{monitor.name}' verified healthy"
+            db.add(
+                IncidentNote(
+                    incident_id=inc.id,
+                    workspace_id=workspace.id,
+                    note_type="status_change",
+                    content=inc.resolution_reason,
+                )
+            )
+            if not workspace.is_demo:
+                from app.notifications.service import dispatch_incident_event
+
+                dispatch_incident_event(
+                    db,
+                    workspace_id=workspace.id,
+                    incident=inc,
+                    event_type="incident_resolved",
+                )
     else:
         monitor.status = "failing"
         monitor.last_failure_at = now

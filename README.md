@@ -94,6 +94,10 @@ npm run build
 - [Phase 8 E2E Verification](docs/E2E_VERIFICATION.md)
 - [Phase 9 Commercial Readiness](docs/COMMERCIAL_READINESS.md)
 - [Phase 10 Launch Readiness & Runbook](docs/LAUNCH_READINESS.md)
+- [Phase 11 Real-World Validation](docs/REAL_WORLD_VALIDATION.md)
+- [Phase 11 Security Test Results](docs/SECURITY_TEST_RESULTS.md)
+- [Phase 11 Beta Readiness](docs/BETA_READINESS.md)
+- [Phase 11 Known Limitations](docs/KNOWN_LIMITATIONS.md)
 
 ---
 

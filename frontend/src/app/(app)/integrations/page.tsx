@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, Plug, RefreshCw, ShieldAlert, TestTube2, Unplug } from "lucide-react";
+import { CheckCircle2, Copy, Plug, RefreshCw, ShieldAlert, TestTube2, Unplug } from "lucide-react";
 import { z } from "zod";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/ca
 import { Input, Select } from "@/components/ui/input";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui/states";
 import { useAuth } from "@/features/auth/auth-context";
+import { API_BASE_URL } from "@/lib/api-client";
 import { formatRelativeDate } from "@/lib/utils";
 import { apiService } from "@/services/api";
 
@@ -145,14 +146,47 @@ export default function IntegrationsPage() {
       ) : null}
 
       {createdSecret ? (
-        <Card className="border-emerald-500/30 bg-emerald-500/5">
+        <Card className="space-y-2 border-emerald-500/30 bg-emerald-500/5">
           <p className="text-xs font-semibold text-emerald-300">
             Webhook Ingestion Secret (copy now — shown once)
           </p>
-          <p className="mt-1 font-mono text-xs text-foreground">POST {createdSecret.path}</p>
-          <p className="mt-1 font-mono text-xs text-emerald-200">
-            Header: X-FlowSentry-Webhook-Secret: {createdSecret.secret}
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="font-mono text-xs text-foreground">
+              POST {API_BASE_URL.replace(/\/$/, "")}
+              {createdSecret.path}
+            </p>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                void navigator.clipboard?.writeText(
+                  `${API_BASE_URL.replace(/\/$/, "")}${createdSecret.path}`
+                );
+                setActionMsg("Webhook URL copied to clipboard.");
+              }}
+            >
+              <Copy className="h-3.5 w-3.5" />
+              Copy URL
+            </Button>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="font-mono text-xs text-emerald-200">
+              Header: X-FlowSentry-Webhook-Secret: {createdSecret.secret}
+            </p>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                void navigator.clipboard?.writeText(createdSecret.secret);
+                setActionMsg("Webhook secret copied to clipboard.");
+              }}
+            >
+              <Copy className="h-3.5 w-3.5" />
+              Copy Secret
+            </Button>
+          </div>
         </Card>
       ) : null}
 
